@@ -1,0 +1,53 @@
+{
+  "name": "vscodeplugin",
+  "displayName": "Vue 变量与方法快速生成插件",
+  "description": "在 Vue 2 和 Vue 3 项目中通过 Alt+Enter 快速生成变量和方法,支持多层嵌套结构和智能跳转",
+  "version": "0.0.1",
+  "publisher": "your-publisher-name",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/vscodeplugin.git"
+  },
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "vscodeplugin.helloWorld",
+        "title": "Hello World"
+      },
+      {
+        "command": "vscodeplugin.generateVueCode",
+        "title": "生成 Vue 变量/方法"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vscodeplugin.generateVueCode",
+        "key": "alt+enter",
+        "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
+      }
+    ]
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "pretest": "pnpm run lint",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.100.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "eslint": "^9.39.1",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
