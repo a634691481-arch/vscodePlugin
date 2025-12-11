@@ -102,15 +102,32 @@ function activate(context) {
           isVue3
         );
         if (varLocation) {
-          // 变量已存在,跳转过去
-          const targetPosition = document.positionAt(varLocation.index);
-          editor.selection = new vscode.Selection(
-            targetPosition,
-            targetPosition
-          );
-          editor.revealRange(new vscode.Range(targetPosition, targetPosition));
+          let appended = false;
+          if (fullPath.includes(".")) {
+            appended = await appendNestedPropertyIfNeededScoped(
+              document,
+              text,
+              varLocation.index,
+              fullPath,
+              baseName,
+              isVue3
+            );
+          }
+          if (!appended) {
+            const targetPosition = document.positionAt(varLocation.index);
+            editor.selection = new vscode.Selection(
+              targetPosition,
+              targetPosition
+            );
+            editor.revealRange(new vscode.Range(targetPosition, targetPosition));
+          }
           vscode.window.showInformationMessage(
-            `变量 ${fullPath} 已存在,已跳转`
+            appended
+              ? `已在 ${baseName} 中追加属性: ${fullPath
+                  .split(".")
+                  .slice(1)
+                  .join(".")}`
+              : `变量 ${fullPath} 已存在,已跳转`
           );
         } else {
           // 变量不存在,创建
@@ -409,50 +426,9 @@ async function generateVariable(
     // Vue3 处理
     if (text.includes("<script setup>")) {
       // Composition API with <script setup>
-      const refImportMatch = text.match(
-        /import\s+{([^}]*)}\s+from\s+['"]vue['"]/
-      );
       let insertPosition;
-
-      if (refImportMatch) {
-        // 已经有 import，在 import 之后插入
-        const importEndIndex = refImportMatch.index + refImportMatch[0].length;
-        const importEndPosition = document.positionAt(importEndIndex);
-        insertPosition = new vscode.Position(importEndPosition.line + 2, 0);
-
-        // 检查是否已经导入 ref
-        const imports = refImportMatch[1];
-        if (!imports.includes("ref")) {
-          const newImports = imports.trim() ? `${imports.trim()}, ref` : "ref";
-          const edit = new vscode.WorkspaceEdit();
-          edit.replace(
-            document.uri,
-            new vscode.Range(
-              document.positionAt(refImportMatch.index),
-              document.positionAt(
-                refImportMatch.index + refImportMatch[0].length
-              )
-            ),
-            `import { ${newImports} } from 'vue'`
-          );
-          await vscode.workspace.applyEdit(edit);
-        }
-      } else {
-        // 没有 import，在 <script setup> 之后插入 import
-        const setupTagMatch = text.match(/<script setup>/);
-        const setupEndIndex = setupTagMatch.index + setupTagMatch[0].length;
-        const setupEndPosition = document.positionAt(setupEndIndex);
-
-        const edit = new vscode.WorkspaceEdit();
-        edit.insert(
-          document.uri,
-          new vscode.Position(setupEndPosition.line + 1, 0),
-          "import { ref } from 'vue'\n\n"
-        );
-        await vscode.workspace.applyEdit(edit);
-
-        insertPosition = new vscode.Position(setupEndPosition.line + 3, 0);
-      }
+      const scriptCloseMatch = text.match(/<\/script>/);
+      insertPosition = document.positionAt(scriptCloseMatch.index);
 
       // 插入变量声明 (支持多层结构)
       const varCode = generateVariableCode(fullPath, baseName, isVue3);
@@ -615,7 +591,7 @@ async function generateMethod(
       const edit = new vscode.WorkspaceEdit();
       edit.insert(
         document.uri,
-        new vscode.Position(scriptEndPosition.line, 0),
+        scriptEndPosition,
         `const ${methodName} = (${params}) => {
 \t// TODO: 实现方法逻辑
 }
@@ -663,19 +639,21 @@ async function generateMethod(
     // Vue2 Options API
     const methodsMatch = scriptContent.match(/methods\s*:\s*{/);
     if (methodsMatch) {
-      const methodsStartIndex =
-        scriptStartIndex + methodsMatch.index + methodsMatch[0].length;
-      const methodsPosition = document.positionAt(methodsStartIndex);
-
-      const params = args.join(", ");
-      const edit = new vscode.WorkspaceEdit();
-      edit.insert(
-        document.uri,
-        new vscode.Position(methodsPosition.line + 1, 0),
-        `\t\t${methodName}(${params}) {\n\t\t\t// TODO: 实现方法逻辑\n\t\t},\n`
-      );
-      await vscode.workspace.applyEdit(edit);
-      vscode.window.showInformationMessage(`已生成 Vue2 方法: ${methodName}`);
+      const openAbsIndex =
+        scriptStartIndex + methodsMatch.index + methodsMatch[0].length - 1; // point to '{'
+      const closeAbsIndex = findClosingBraceIndex(text, openAbsIndex);
+      if (closeAbsIndex > openAbsIndex) {
+        const insertPos = document.positionAt(closeAbsIndex);
+        const params = args.join(", ");
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(
+          document.uri,
+          insertPos,
+          `\n\t\t${methodName}(${params}) {\n\t\t\t// TODO: 实现方法逻辑\n\t\t},\n`
+        );
+        await vscode.workspace.applyEdit(edit);
+        vscode.window.showInformationMessage(`已生成 Vue2 方法: ${methodName}`);
+      }
     } else {
       // 没有 methods 对象，创建一个
       const exportMatch = scriptContent.match(/export\s+default\s*{/);
@@ -756,6 +734,566 @@ async function updateMethodSignatureIfNeeded(
       return;
     }
   }
+}
+
+function findClosingBraceIndex(text, openIndex) {
+  let depth = 0;
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return i; // position of matching '}'
+    }
+  }
+  return -1;
+}
+function findClosingParenIndex(text, openIndex) {
+  let depth = 0;
+  for (let i = openIndex; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+function findPropValueRangeInObject(objText, valueStartRel) {
+  let i = valueStartRel;
+  while (i < objText.length && /\s/.test(objText[i])) i++;
+  const start = i;
+  let depth = 0;
+  let inStr = false;
+  let quote = null;
+  for (; i < objText.length; i++) {
+    const ch = objText[i];
+    if (inStr) {
+      if (ch === quote && objText[i - 1] !== "\\") {
+        inStr = false;
+        quote = null;
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inStr = true;
+      quote = ch;
+      continue;
+    }
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      if (depth > 0) depth--;
+      else break;
+    } else if (ch === "," && depth === 0) {
+      break;
+    }
+  }
+  const end = i;
+  return { start, end };
+}
+
+function buildNested(keys) {
+  let nested = "";
+  for (let i = keys.length - 1; i >= 0; i--) {
+    if (i === keys.length - 1) nested = `{ ${keys[i]}: '' }`;
+    else nested = `{ ${keys[i]}: ${nested} }`;
+  }
+  return nested;
+}
+
+async function insertProperty(
+  document,
+  text,
+  openAbs,
+  closeAbs,
+  key,
+  value,
+  indentTabs,
+  additionOverride
+) {
+  const objContent = text.slice(openAbs + 1, closeAbs);
+  const isMultiline = objContent.includes("\n");
+  let prev = closeAbs - 1;
+  while (prev > openAbs && /\s/.test(text[prev])) prev--;
+  const edit = new vscode.WorkspaceEdit();
+  if (isMultiline) {
+    if (text[prev] !== ",") {
+      edit.insert(document.uri, document.positionAt(prev + 1), ",");
+    }
+    const lastNl = text.lastIndexOf("\n", closeAbs - 1);
+    const indentMatch =
+      lastNl >= 0 ? text.slice(lastNl + 1, closeAbs).match(/^\s*/) : null;
+    const indent = indentMatch ? indentMatch[0] : "\t".repeat(indentTabs || 2);
+    const prefix = text[closeAbs - 1] === "\n" ? "" : "\n";
+    const addition = additionOverride ?? `${key}: ${value}`;
+    edit.insert(
+      document.uri,
+      document.positionAt(closeAbs),
+      `${prefix}${indent}${addition}\n`
+    );
+  } else {
+    const addition = additionOverride ?? `${key}: ${value}`;
+    edit.insert(document.uri, document.positionAt(closeAbs), `, ${addition}`);
+  }
+  await vscode.workspace.applyEdit(edit);
+  return true;
+}
+
+async function appendNestedPropertyIfNeededScoped(
+  document,
+  text,
+  varStartIndex,
+  fullPath,
+  baseName,
+  isVue3
+) {
+  const parts = fullPath.split(".");
+  if (parts.length < 2) return false;
+  const chain = parts.slice(1);
+  const parentKey = chain[0];
+  const lastKey = chain[chain.length - 1];
+
+  if (isVue3) {
+    const slice = text.slice(varStartIndex, varStartIndex + 4000);
+    const assignIdx = slice.search(/=\s*(?:ref|reactive)\s*\(/);
+    if (assignIdx < 0) return false;
+    const braceRel = slice.indexOf("{", assignIdx);
+    if (braceRel < 0) {
+      const parenRel = slice.indexOf("(", assignIdx);
+      if (parenRel < 0) return false;
+      const openParenAbs = varStartIndex + parenRel;
+      const closeParenAbs = findClosingParenIndex(text, openParenAbs);
+      if (closeParenAbs <= openParenAbs) return false;
+      const nested = buildNested(chain);
+      const range = new vscode.Range(
+        document.positionAt(openParenAbs + 1),
+        document.positionAt(closeParenAbs)
+      );
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(document.uri, range, nested);
+      await vscode.workspace.applyEdit(edit);
+      return true;
+    }
+    const openAbs = varStartIndex + braceRel;
+    const closeAbs = findClosingBraceIndex(text, openAbs);
+    if (closeAbs <= openAbs) return false;
+    const objContent = text.slice(openAbs + 1, closeAbs);
+
+    if (chain.length === 1) {
+      const exists = new RegExp(`\\b${lastKey}\\s*:`).test(objContent);
+      if (exists) return false;
+      return insertProperty(
+        document,
+        text,
+        openAbs,
+        closeAbs,
+        lastKey,
+        "''",
+        2
+      );
+    } else {
+      const parentMatch = objContent.match(
+        new RegExp(`\\b${parentKey}\\s*:\\s*`)
+      );
+      if (parentMatch) {
+        const valueStartRel = parentMatch.index + parentMatch[0].length;
+        const { start, end } = findPropValueRangeInObject(
+          objContent,
+          valueStartRel
+        );
+        const absFrom = openAbs + 1 + start;
+        const absTo = openAbs + 1 + end;
+        const valFirstChar = text[absFrom];
+        if (valFirstChar === "{") {
+          const innerOpen = absFrom;
+          const innerClose = findClosingBraceIndex(text, innerOpen);
+          const innerContent = text.slice(innerOpen + 1, innerClose);
+          if (chain.length === 2) {
+            const existsInner = new RegExp(`\\b${lastKey}\\s*:`).test(
+              innerContent
+            );
+            if (existsInner) return false;
+            return insertProperty(
+              document,
+              text,
+              innerOpen,
+              innerClose,
+              lastKey,
+              "''",
+              2
+            );
+          }
+          const nested = buildNested(chain.slice(1));
+          const range = new vscode.Range(
+            document.positionAt(absFrom),
+            document.positionAt(absTo)
+          );
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(document.uri, range, nested);
+          await vscode.workspace.applyEdit(edit);
+          return true;
+        } else {
+          const nested = buildNested(chain.slice(1));
+          const range = new vscode.Range(
+            document.positionAt(absFrom),
+            document.positionAt(absTo)
+          );
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(document.uri, range, nested);
+          await vscode.workspace.applyEdit(edit);
+          return true;
+        }
+      } else {
+        const nested = buildNested(chain.slice(1));
+        const addition = `${parentKey}: ${nested}`;
+        return insertProperty(
+          document,
+          text,
+          openAbs,
+          closeAbs,
+          null,
+          null,
+          2,
+          addition
+        );
+      }
+    }
+  } else {
+    const slice = text.slice(varStartIndex, varStartIndex + 4000);
+    const objIdx = slice.search(new RegExp(`\\b${baseName}\\s*:\\s*{`));
+    if (objIdx < 0) {
+      const propMatch = slice.match(new RegExp(`\\b${baseName}\\s*:\\s*`));
+      if (!propMatch) return false;
+      const valueStartRel = propMatch.index + propMatch[0].length;
+      const rangeInfo = findPropValueRangeInObject(slice, valueStartRel);
+      const absFrom = varStartIndex + rangeInfo.start;
+      const absTo = varStartIndex + rangeInfo.end;
+      const nested = buildNested(chain);
+      const range = new vscode.Range(
+        document.positionAt(absFrom),
+        document.positionAt(absTo)
+      );
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(document.uri, range, nested);
+      await vscode.workspace.applyEdit(edit);
+      return true;
+    }
+    const braceRel = slice.indexOf("{", objIdx);
+    if (braceRel < 0) return false;
+    const openAbs = varStartIndex + braceRel;
+    const closeAbs = findClosingBraceIndex(text, openAbs);
+    if (closeAbs <= openAbs) return false;
+    const objContent = text.slice(openAbs + 1, closeAbs);
+
+    if (chain.length === 1) {
+      const exists = new RegExp(`\\b${lastKey}\\s*:`).test(objContent);
+      if (exists) return false;
+      return insertProperty(
+        document,
+        text,
+        openAbs,
+        closeAbs,
+        lastKey,
+        "''",
+        4
+      );
+    } else {
+      const parentMatch = objContent.match(
+        new RegExp(`\\b${parentKey}\\s*:\\s*`)
+      );
+      if (parentMatch) {
+        const valueStartRel = parentMatch.index + parentMatch[0].length;
+        const { start, end } = findPropValueRangeInObject(
+          objContent,
+          valueStartRel
+        );
+        const absFrom = openAbs + 1 + start;
+        const absTo = openAbs + 1 + end;
+        const valFirstChar = text[absFrom];
+        if (valFirstChar === "{") {
+          const innerOpen = absFrom;
+          const innerClose = findClosingBraceIndex(text, innerOpen);
+          const innerContent = text.slice(innerOpen + 1, innerClose);
+          if (chain.length === 2) {
+            const existsInner = new RegExp(`\\b${lastKey}\\s*:`).test(
+              innerContent
+            );
+            if (existsInner) return false;
+            return insertProperty(
+              document,
+              text,
+              innerOpen,
+              innerClose,
+              lastKey,
+              "''",
+              4
+            );
+          }
+          const nested = buildNested(chain.slice(1));
+          const range = new vscode.Range(
+            document.positionAt(absFrom),
+            document.positionAt(absTo)
+          );
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(document.uri, range, nested);
+          await vscode.workspace.applyEdit(edit);
+          return true;
+        } else {
+          const nested = buildNested(chain.slice(1));
+          const range = new vscode.Range(
+            document.positionAt(absFrom),
+            document.positionAt(absTo)
+          );
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(document.uri, range, nested);
+          await vscode.workspace.applyEdit(edit);
+          return true;
+        }
+      } else {
+        const nested = buildNested(chain.slice(1));
+        const addition = `${parentKey}: ${nested}`;
+        return insertProperty(
+          document,
+          text,
+          openAbs,
+          closeAbs,
+          null,
+          null,
+          4,
+          addition
+        );
+      }
+    }
+  }
+  return false;
+}
+function findPropValueRangeInObject(objText, valueStartRel) {
+  let i = valueStartRel;
+  while (i < objText.length && /\s/.test(objText[i])) i++;
+  const start = i;
+  let depth = 0;
+  let inStr = false;
+  let quote = null;
+  for (; i < objText.length; i++) {
+    const ch = objText[i];
+    if (inStr) {
+      if (ch === quote && objText[i - 1] !== "\\") {
+        inStr = false;
+        quote = null;
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inStr = true;
+      quote = ch;
+      continue;
+    }
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      if (depth > 0) depth--;
+      else break;
+    } else if (ch === "," && depth === 0) {
+      break;
+    }
+  }
+  const end = i;
+  return { start, end };
+}
+
+async function appendNestedPropertyIfNeeded(
+  document,
+  text,
+  varStartIndex,
+  fullPath,
+  baseName,
+  isVue3
+) {
+  const parts = fullPath.split(".");
+  if (parts.length < 2) return false;
+  const propChain = parts.slice(1);
+  const lastKey = propChain[propChain.length - 1];
+
+  if (isVue3) {
+    const slice = text.slice(varStartIndex, varStartIndex + 2000);
+    const assignIdx = slice.search(/=\s*(?:ref|reactive)\s*\(/);
+    if (assignIdx >= 0) {
+      const braceRel = slice.indexOf("{", assignIdx);
+      if (braceRel >= 0) {
+        const openAbs = varStartIndex + braceRel;
+        const closeAbs = findClosingBraceIndex(text, openAbs);
+        if (closeAbs > openAbs) {
+          const objContent = text.slice(openAbs + 1, closeAbs);
+          const firstKey = propChain[0];
+          if (
+            propChain.length > 1 &&
+            new RegExp(`\\b${firstKey}\\s*:`).test(objContent)
+          ) {
+            const propMatch = objContent.match(
+              new RegExp(`\\b${firstKey}\\s*:\\s*`)
+            );
+            if (propMatch) {
+              const valueStartRel = propMatch.index + propMatch[0].length;
+              const { start, end } = findPropValueRangeInObject(
+                objContent,
+                valueStartRel
+              );
+              const absFrom = openAbs + 1 + start;
+              const absTo = openAbs + 1 + end;
+              let nested = "";
+              for (let i = propChain.length - 1; i >= 1; i--) {
+                if (i === propChain.length - 1)
+                  nested = `{ ${propChain[i]}: '' }`;
+                else nested = `{ ${propChain[i]}: ${nested} }`;
+              }
+              const range = new vscode.Range(
+                document.positionAt(absFrom),
+                document.positionAt(absTo)
+              );
+              const edit = new vscode.WorkspaceEdit();
+              edit.replace(document.uri, range, nested);
+              await vscode.workspace.applyEdit(edit);
+              return true;
+            }
+          }
+          const exists = new RegExp(`\\b${lastKey}\\s*:`).test(objContent);
+          if (!exists) {
+            let addition = "";
+            if (propChain.length === 1) {
+              addition = `${lastKey}: ''`;
+            } else {
+              let nested = "";
+              for (let i = propChain.length - 1; i >= 0; i--) {
+                if (i === propChain.length - 1)
+                  nested = `{ ${propChain[i]}: '' }`;
+                else nested = `{ ${propChain[i]}: ${nested} }`;
+              }
+              addition = nested;
+            }
+            let prev = closeAbs - 1;
+            while (prev > openAbs && /\s/.test(text[prev])) prev--;
+            const isMultiline = objContent.includes("\n");
+            const edit = new vscode.WorkspaceEdit();
+            if (isMultiline) {
+              if (text[prev] !== ",") {
+                edit.insert(document.uri, document.positionAt(prev + 1), ",");
+              }
+              const lastNl = text.lastIndexOf("\n", closeAbs - 1);
+              const indentMatch =
+                lastNl >= 0
+                  ? text.slice(lastNl + 1, closeAbs).match(/^\s*/)
+                  : null;
+              const indent = indentMatch ? indentMatch[0] : "\t\t";
+              const prefix = text[closeAbs - 1] === "\n" ? "" : "\n";
+              edit.insert(
+                document.uri,
+                document.positionAt(closeAbs),
+                `${prefix}${indent}${addition},\n`
+              );
+            } else {
+              edit.insert(
+                document.uri,
+                document.positionAt(closeAbs),
+                `, ${addition}`
+              );
+            }
+            await vscode.workspace.applyEdit(edit);
+            return true;
+          }
+        }
+      }
+    }
+  } else {
+    const slice = text.slice(varStartIndex, varStartIndex + 3000);
+    const objIdx = slice.search(new RegExp(`\\b${baseName}\\s*:\\s*{`));
+    if (objIdx >= 0) {
+      const braceRel = slice.indexOf("{", objIdx);
+      if (braceRel >= 0) {
+        const openAbs = varStartIndex + braceRel;
+        const closeAbs = findClosingBraceIndex(text, openAbs);
+        if (closeAbs > openAbs) {
+          const objContent = text.slice(openAbs + 1, closeAbs);
+          const firstKey = propChain[0];
+          if (
+            propChain.length > 1 &&
+            new RegExp(`\\b${firstKey}\\s*:`).test(objContent)
+          ) {
+            const propMatch = objContent.match(
+              new RegExp(`\\b${firstKey}\\s*:\\s*`)
+            );
+            if (propMatch) {
+              const valueStartRel = propMatch.index + propMatch[0].length;
+              const { start, end } = findPropValueRangeInObject(
+                objContent,
+                valueStartRel
+              );
+              const absFrom = openAbs + 1 + start;
+              const absTo = openAbs + 1 + end;
+              let nested = "";
+              for (let i = propChain.length - 1; i >= 1; i--) {
+                if (i === propChain.length - 1)
+                  nested = `{ ${propChain[i]}: '' }`;
+                else nested = `{ ${propChain[i]}: ${nested} }`;
+              }
+              const range = new vscode.Range(
+                document.positionAt(absFrom),
+                document.positionAt(absTo)
+              );
+              const edit = new vscode.WorkspaceEdit();
+              edit.replace(document.uri, range, nested);
+              await vscode.workspace.applyEdit(edit);
+              return true;
+            }
+          }
+          const exists = new RegExp(`\\b${lastKey}\\s*:`).test(objContent);
+          if (!exists) {
+            let addition = "";
+            if (propChain.length === 1) {
+              addition = `${lastKey}: ''`;
+            } else {
+              let nested = "";
+              for (let i = propChain.length - 1; i >= 1; i--) {
+                if (i === propChain.length - 1)
+                  nested = `{ ${propChain[i]}: '' }`;
+                else nested = `{ ${propChain[i]}: ${nested} }`;
+              }
+              addition = `${propChain[0]}: ${nested}`;
+            }
+            let prev = closeAbs - 1;
+            while (prev > openAbs && /\s/.test(text[prev])) prev--;
+            const isMultiline = objContent.includes("\n");
+            const edit = new vscode.WorkspaceEdit();
+            if (isMultiline) {
+              if (text[prev] !== ",") {
+                edit.insert(document.uri, document.positionAt(prev + 1), ",");
+              }
+              const lastNl = text.lastIndexOf("\n", closeAbs - 1);
+              const indentMatch =
+                lastNl >= 0
+                  ? text.slice(lastNl + 1, closeAbs).match(/^\s*/)
+                  : null;
+              const indent = indentMatch ? indentMatch[0] : "\t\t\t\t";
+              const prefix = text[closeAbs - 1] === "\n" ? "" : "\n";
+              edit.insert(
+                document.uri,
+                document.positionAt(closeAbs),
+                `${prefix}${indent}${addition},\n`
+              );
+            } else {
+              edit.insert(
+                document.uri,
+                document.positionAt(closeAbs),
+                `, ${addition}`
+              );
+            }
+            await vscode.workspace.applyEdit(edit);
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 
 // This method is called when your extension is deactivated

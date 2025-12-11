@@ -1,12 +1,18 @@
 {
-  "name": "vscodeplugin",
-  "displayName": "Vue 变量与方法快速生成插件",
+  "name": "vue-variable-method-generator",
+  "displayName": "Vue 变量/方法生成器",
   "description": "在 Vue 2 和 Vue 3 项目中通过 Alt+Enter 快速生成变量和方法,支持多层嵌套结构和智能跳转",
-  "version": "0.0.1",
-  "publisher": "your-publisher-name",
+  "version": "1.0.5",
+  "publisher": "vue-variable-method-generator",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#0F172A",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/vscodeplugin.git"
+    "url": "https://github.com/a634691481-arch/vscodePlugin"
   },
   "engines": {
     "vscode": "^1.100.0"
