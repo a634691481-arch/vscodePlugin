@@ -916,7 +916,9 @@ async function insertProperty(
     const indentMatch =
       lastNl >= 0 ? text.slice(lastNl + 1, closeAbs).match(/^\s*/) : null;
     const indent = indentMatch ? indentMatch[0] : "\t".repeat(indentTabs || 2);
-    const prefix = text[closeAbs - 1] === "\n" ? "" : "\n";
+    const segment = lastNl >= 0 ? text.slice(lastNl + 1, closeAbs) : "";
+    const onlyWhitespace = /^\s*$/.test(segment);
+    const prefix = onlyWhitespace ? "" : "\n";
     const addition = additionOverride ?? `${key}: ${value}`;
     edit.insert(
       document.uri,
