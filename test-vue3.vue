@@ -1,50 +1,28 @@
 <template>
   <div>
-    <div>
-      <!-- 单层变量 -->
-      {{ userName }}
+    <view @click="submit">提交</view>
+    <view @change="change">提交</view>
 
-      <!-- 多层嵌套变量 -->
-      {{ user.profile.name }}
-      {{ user.profile.age }}
+    <view @change="changeeeeee333">提交</view>
+    <view @change="changeeeeee">提交</view>
+    <view @change="changeeeeee(item)">提交</view>
+    <view>
+      <!-- {{ statsBuffer.status }} -->
       {{ statsBuffer.ddddddddddddddddddd }}
-      {{ statsBuffer.aaaaaaaaaa }}
-
-      <!-- 已存在的变量 -->
-      {{ message }}
-
-      <!-- 方法调用 -->
-      <view @click="getTheFile">获取文件</view>
-      <view @click="getList">获取列表</view>
-      <view @click="viewDetails(k)">查看详情</view>
-      <view @click="viewList(x, xx, xxx, xxxx)">查看列表</view>
-
-      <!-- 未定义的方法 -->
-      <button @click="handleClick">点击按钮</button>
-      <button @click="submitForm()">提交表单</button>
-      <div v-on:click="changeName">改变名称</div>
-    </div>
+      {{ ttt.ddddddddddddddddddd }}
+      {{ uuuu.ddddddddddddddddddd }}
+    </view>
   </div>
 </template>
 
 <script setup>
-const userName = ref("");
-const user = ref({ profile: { name: "", age: "" } });
-const statsBuffer = ref({ ddddddddddddddddddd: "", aaaaaaaaaa: "" });
-const message = ref("");
-const getTheFile = () => {
+const statsBuffer = ref({ ddddddddddddddddddd: "" });
+const ttt = ref({ ddddddddddddddddddd: "" });
+const uuuu = ref({ ddddddddddddddddddd: "" });
+const changeeeeee = (item) => {
   // TODO: 实现方法逻辑
 };
-
-const getList = () => {
-  // TODO: 实现方法逻辑
-};
-
-const viewDetails = (k) => {
-  // TODO: 实现方法逻辑
-};
-
-const viewList = (x, xx, xxx, xxxx) => {
+const changeeeeee333 = () => {
   // TODO: 实现方法逻辑
 };
 </script>

@@ -7,8 +7,10 @@
       <!-- 多层嵌套变量 -->
       {{ user.profile.name }}
       {{ user.profile.age }}
-      {{ statsBuffer.ddddddddddddddddddd }}
       {{ statsBuffer.aaaaaaaaaa }}
+
+      {{ statsBuffer.ddddddddddddddddddd }}
+      {{ ddddddddddddddddddd }}
 
       <!-- 已存在的变量 -->
       {{ message }}
