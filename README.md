@@ -68,66 +68,70 @@
   • 不自动插入或修改 `import`（如 `ref`/`reactive`）；请使用项目的自动导入方案或自行维护
 
 6️⃣ 示例  
- 🧪 Vue3（`<script setup>`）  
-  ```vue  
-  <template>  
-   <div>  
-   {{ statsBuffer.profile.name }}  
-   <button @click="submitForm(inputValue)">提交</button>  
-   </div>  
-  </template>
+ 🧪 Vue3（`<script setup>`）
 
-<script setup>  
-  // Alt+Enter：生成 statsBuffer 与嵌套 profile.name；生成 submitForm(inputValue)  
-  </script>
+```vue
+  
+<template>
+    
+  <div>
+       {{ statsBuffer.profile.name }}   
+    <button @click="submitForm(inputValue)">提交</button>   
+  </div>
+    
+</template>
 
+<script setup>
+// Alt+Enter：生成 statsBuffer 与嵌套 profile.name；生成 submitForm(inputValue)
+</script>
 ```
 
-🧪 Vue2（Options API）  
-  ```vue  
-  <template>  
-   <div>  
-   {{ gggg }}  
-   {{ gggg.name }}  
-   <button @click="handleClick(x)">点击</button>  
-   </div>  
-  </template>
+🧪 Vue2（Options API）
 
-<script>  
-  export default {  
-   data() {  
-   return {  
-   gggg: '', // Alt+Enter 在 {{ gggg.name }} 上：自动转换为对象并追加 name  
-   }  
-   },  
-   methods: {  
-   // Alt+Enter 在模板方法名上：自动追加到末尾  
-   }  
-  }  
-  </script>
+```vue
+<template>
+    
+  <div>
+       {{ gggg }}    {{ gggg.name }}   
+    <button @click="handleClick(x)">点击</button>   
+  </div>
+    
+</template>
 
+<script>
+export default {
+  data() {
+    return {
+      gggg: "", // Alt+Enter 在 {{ gggg.name }} 上：自动转换为对象并追加 name
+    };
+  },
+  methods: {
+    // Alt+Enter 在模板方法名上：自动追加到末尾
+  },
+};
+</script>
 ```
 
-7️⃣ 常见问题  
- ❓ 我想用 Alt+左键跳转可以吗？  
+7️⃣ 常见问题
+ ❓ 我想用 Alt+左键跳转可以吗？
   VS Code 不支持扩展自定义 Alt+点击为跳转；请使用 `Ctrl/Cmd + 左键` 或 `F12`。
 
-❓ 首次生成为什么不跳转？  
+❓ 首次生成为什么不跳转？
    首次生成不跳转；为已有对象追加子字段也不跳转；只有完整定义已存在且未追加时才跳转。
 
-❓ 顶层与嵌套同名是否会冲突？  
+❓ 顶层与嵌套同名是否会冲突？
    不会。顶层与嵌套的检查/插入在不同作用域执行，互不影响。
 
-❓ Vue3 的 `ref('')` 能追加子属性吗？  
+❓ Vue3 的 `ref('')` 能追加子属性吗？
    能。插件会自动替换为 `ref({ ... })` 再追加子属性。
 
-❓ Vue2 的 `gggg: ''` 能追加 `gggg.name` 吗？  
+❓ Vue2 的 `gggg: ''` 能追加 `gggg.name` 吗？
    能。插件会自动把标量替换为对象，再追加 `name`。
 
-8️⃣ 建议  
- 🚀 Vue3 项目推荐搭配自动导入（如 `unplugin-auto-import`），减少 `ref/reactive` 导入维护  
+8️⃣ 建议
+ 🚀 Vue3 项目推荐搭配自动导入（如 `unplugin-auto-import`），减少 `ref/reactive` 导入维护
  🎯 遵循默认快捷键（Alt+Enter、Ctrl/Cmd+左键、F12、Shift+F12）可获得最佳体验
 
-9️⃣ 支持  
- 🛠️ 若遇到插入位置或跳转异常，请附上最小复现（模板+脚本），便于快速定位  
+9️⃣ 支持
+ 🛠️ 若遇到插入位置或跳转异常，请附上最小复现（模板+脚本），便于快速定位
  🤝 欢迎在仓库提交 Issue/PR

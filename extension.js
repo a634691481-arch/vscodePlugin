@@ -119,9 +119,7 @@ function activate(context) {
               targetPosition,
               targetPosition
             );
-            editor.revealRange(
-              new vscode.Range(targetPosition, targetPosition)
-            );
+            editor.revealRange(new vscode.Range(targetPosition, targetPosition));
           }
           vscode.window.showInformationMessage(
             appended
@@ -146,64 +144,7 @@ function activate(context) {
     }
   );
 
-  const definitionProvider = {
-    provideDefinition(document, position) {
-      const text = document.getText();
-      const line = document.lineAt(position.line).text;
-      const wordRange = document.getWordRangeAtPosition(
-        position,
-        /[A-Za-z_$][A-Za-z0-9_$]*/
-      );
-      if (!wordRange) return null;
-      const name = document.getText(wordRange);
-      const isVue3 =
-        text.includes("setup()") ||
-        text.includes("<script setup>") ||
-        /import\s+{[^}]*ref[^}]*}\s+from\s+['"]vue['"]/.test(text);
-      const vp = getFullVariablePath(document, position, line);
-      if (vp && vp.fullPath && vp.baseName) {
-        const nestedLoc = findNestedPropertyDefinition(
-          text,
-          vp.fullPath,
-          vp.baseName,
-          isVue3
-        );
-        if (nestedLoc) {
-          const target = document.positionAt(nestedLoc.index);
-          return new vscode.Location(document.uri, target);
-        }
-        const vloc = findVariableDefinition(
-          text,
-          vp.fullPath,
-          vp.baseName,
-          isVue3
-        );
-        if (vloc) {
-          const target = document.positionAt(vloc.index);
-          return new vscode.Location(document.uri, target);
-        }
-      }
-      if (isMethodReference(line, name)) {
-        const mloc = findMethodDefinition(text, name, isVue3);
-        if (mloc) {
-          const target = document.positionAt(mloc.index);
-          return new vscode.Location(document.uri, target);
-        }
-      }
-      return null;
-    },
-  };
-  const selector = [
-    { language: "vue", scheme: "file" },
-    { language: "javascript", scheme: "file" },
-    { language: "typescript", scheme: "file" },
-  ];
-  const defReg = vscode.languages.registerDefinitionProvider(
-    selector,
-    definitionProvider
-  );
-
-  context.subscriptions.push(disposable, generateVueCode, defReg);
+  context.subscriptions.push(disposable, generateVueCode);
 }
 
 /**
@@ -362,159 +303,27 @@ function findVariableDefinition(text, fullPath, baseName, isVue3) {
       }
     }
   } else {
+    // Vue2: 在 data() 中查找
     const dataMatch = scriptContent.match(
       /data\s*\(\)\s*{\s*return\s*{([\s\S]*?)}/m
     );
     if (dataMatch) {
       const dataContent = dataMatch[1];
-      const whole = dataMatch[0];
-      const wholeAbs = scriptStartIndex + scriptContent.indexOf(whole);
-      const contentAbsStart =
-        wholeAbs + whole.indexOf("return {") + "return {".length;
-      const idx = findTopLevelKeyIndexInObject(dataContent, baseName);
-      if (idx >= 0) {
-        return { index: contentAbsStart + idx };
+      // 支持多层结构: user: { name: '', age: 0 }
+      const baseNamePattern = new RegExp(`${baseName}\\s*:`, "g");
+      if (baseNamePattern.test(dataContent)) {
+        const match = dataContent.match(baseNamePattern);
+        return {
+          index:
+            scriptStartIndex +
+            scriptContent.indexOf(dataMatch[0]) +
+            dataMatch[0].indexOf(match[0]),
+        };
       }
     }
   }
 
   return null;
-}
-
-function findTopLevelKeyIndexInObject(objText, key) {
-  let i = 0;
-  let depth = 0;
-  let inStr = false;
-  let quote = null;
-  while (i < objText.length) {
-    const ch = objText[i];
-    if (inStr) {
-      if (ch === quote && objText[i - 1] !== "\\") {
-        inStr = false;
-        quote = null;
-      }
-      i++;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      inStr = true;
-      quote = ch;
-      i++;
-      continue;
-    }
-    if (ch === "{") {
-      depth++;
-      i++;
-      continue;
-    }
-    if (ch === "}") {
-      if (depth > 0) depth--;
-      i++;
-      continue;
-    }
-    if (depth === 0) {
-      if (objText.startsWith(key, i)) {
-        const prev = i - 1;
-        const boundary = prev < 0 || /[\s,]/.test(objText[prev]);
-        if (boundary) {
-          let j = i + key.length;
-          while (j < objText.length && /\s/.test(objText[j])) j++;
-          if (objText[j] === ":") return i;
-        }
-      }
-    }
-    i++;
-  }
-  return -1;
-}
-
-function findNestedPropertyDefinition(text, fullPath, baseName, isVue3) {
-  const parts = fullPath.split(".");
-  if (parts.length < 2) return null;
-  const chain = parts.slice(1);
-  const scriptMatch = text.match(/<script[^>]*>([\s\S]*?)<\/script>/);
-  if (!scriptMatch) return null;
-  const scriptContent = scriptMatch[1];
-  const scriptStartIndex =
-    scriptMatch.index + scriptMatch[0].indexOf(scriptContent);
-  if (isVue3) {
-    const decl = scriptContent.match(
-      new RegExp(`(const|let|var)\\s+${baseName}\\s*=\\s*(ref|reactive)\\s*\\(`)
-    );
-    if (!decl) return null;
-    const afterDeclRel = decl.index + decl[0].length;
-    const parenOpenAbs = scriptStartIndex + afterDeclRel - 1;
-    const parenCloseAbs = findClosingParenIndex(text, parenOpenAbs);
-    if (parenCloseAbs <= parenOpenAbs) return null;
-    const braceRelInSlice = scriptContent.indexOf("{", afterDeclRel);
-    if (braceRelInSlice < 0) return null;
-    const objOpenAbs = scriptStartIndex + braceRelInSlice;
-    const objCloseAbs = findClosingBraceIndex(text, objOpenAbs);
-    if (objCloseAbs <= objOpenAbs) return null;
-    let open = objOpenAbs;
-    let close = objCloseAbs;
-    let objText = text.slice(open + 1, close);
-    let parentKey = chain[0];
-    for (let i = 0; i < chain.length; i++) {
-      const key = chain[i];
-      if (i === 0 && chain.length > 1) {
-        const pm = objText.match(new RegExp(`\\b${parentKey}\\s*:\\s*`));
-        if (!pm) return null;
-        const valueStartRel = pm.index + pm[0].length;
-        const range = findPropValueRangeInObject(objText, valueStartRel);
-        const innerOpenAbs = open + 1 + range.start;
-        const innerCloseAbs = open + 1 + range.end;
-        if (text[innerOpenAbs] !== "{") return null;
-        open = innerOpenAbs;
-        close = findClosingBraceIndex(text, open);
-        objText = text.slice(open + 1, close);
-      }
-      if (i === chain.length - 1) {
-        const idxRel = objText.search(new RegExp(`\\b${key}\\s*:`));
-        if (idxRel < 0) return null;
-        return { index: open + 1 + idxRel };
-      }
-    }
-    return null;
-  } else {
-    const dataMatch = scriptContent.match(
-      /data\s*\(\)\s*{\s*return\s*{([\s\S]*?)}/m
-    );
-    if (!dataMatch) return null;
-    const dataContent = dataMatch[1];
-    const whole = dataMatch[0];
-    const wholeAbs = scriptStartIndex + scriptContent.indexOf(whole);
-    const contentAbsStart =
-      wholeAbs + whole.indexOf("return {") + "return {".length;
-    const baseIdxRel = findTopLevelKeyIndexInObject(dataContent, baseName);
-    if (baseIdxRel < 0) return null;
-    const baseKeyAbs = contentAbsStart + baseIdxRel;
-    const baseObjOpenRel = dataContent.indexOf("{", baseIdxRel);
-    if (baseObjOpenRel < 0) return null;
-    let open = contentAbsStart + baseObjOpenRel;
-    let close = findClosingBraceIndex(text, open);
-    let objText = text.slice(open + 1, close);
-    for (let i = 0; i < chain.length; i++) {
-      const key = chain[i];
-      if (i < chain.length - 1) {
-        const pm = objText.match(new RegExp(`\\b${key}\\s*:\\s*`));
-        if (!pm) return null;
-        const valueStartRel = pm.index + pm[0].length;
-        const range = findPropValueRangeInObject(objText, valueStartRel);
-        const innerOpenAbs = open + 1 + range.start;
-        const innerCloseAbs = open + 1 + range.end;
-        if (text[innerOpenAbs] !== "{") return null;
-        open = innerOpenAbs;
-        close = findClosingBraceIndex(text, open);
-        objText = text.slice(open + 1, close);
-      } else {
-        const idxRel = objText.search(new RegExp(`\\b${key}\\s*:`));
-        if (idxRel < 0) return null;
-        return { index: open + 1 + idxRel };
-      }
-    }
-    return null;
-  }
 }
 
 /**
@@ -619,40 +428,7 @@ async function generateVariable(
       // Composition API with <script setup>
       let insertPosition;
       const scriptCloseMatch = text.match(/<\/script>/);
-      const varDecl =
-        /(const|let|var)\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*(ref|reactive)\s*\(/g;
-      let m;
-      let lastVarRel = -1;
-      while ((m = varDecl.exec(scriptContent)) !== null) {
-        lastVarRel = m.index;
-      }
-      if (lastVarRel >= 0) {
-        const slice = scriptContent.slice(lastVarRel);
-        const nlRel = slice.indexOf("\n");
-        const abs =
-          nlRel >= 0
-            ? scriptStartIndex + lastVarRel + nlRel + 1
-            : scriptStartIndex + lastVarRel + slice.length;
-        insertPosition = document.positionAt(abs);
-      } else {
-        const r1 =
-          /const\s+[A-Za-z_$][A-Za-z0-9_$]*\s*=\s*\([^)]*\)\s*=>\s*\{/g;
-        const r2 = /function\s+[A-Za-z_$][A-Za-z0-9_$]*\s*\(/g;
-        let firstMethodRel = -1;
-        let mm;
-        if ((mm = r1.exec(scriptContent)) !== null) firstMethodRel = mm.index;
-        if ((mm = r2.exec(scriptContent)) !== null) {
-          if (firstMethodRel === -1 || mm.index < firstMethodRel)
-            firstMethodRel = mm.index;
-        }
-        if (firstMethodRel >= 0) {
-          insertPosition = document.positionAt(
-            scriptStartIndex + firstMethodRel
-          );
-        } else {
-          insertPosition = document.positionAt(scriptCloseMatch.index);
-        }
-      }
+      insertPosition = document.positionAt(scriptCloseMatch.index);
 
       // 插入变量声明 (支持多层结构)
       const varCode = generateVariableCode(fullPath, baseName, isVue3);
@@ -661,21 +437,20 @@ async function generateVariable(
       await vscode.workspace.applyEdit(edit);
       vscode.window.showInformationMessage(`已生成 Vue3 变量: ${fullPath}`);
     } else {
-      // Composition API with setup()：变量插入到 return 之前（末尾追加）
-      const setupMatch = scriptContent.match(
-        /setup\s*\([^)]*\)\s*{[\s\S]*?return\s*{/
-      );
+      // Composition API with setup()
+      const setupMatch = scriptContent.match(/setup\s*\([^)]*\)\s*{/);
       if (setupMatch) {
-        const returnIndex =
-          scriptStartIndex +
-          setupMatch.index +
-          setupMatch[0].length -
-          "return {".length;
-        const returnPosition = document.positionAt(returnIndex);
+        const setupStartIndex =
+          scriptStartIndex + setupMatch.index + setupMatch[0].length;
+        const setupPosition = document.positionAt(setupStartIndex);
 
         const varCode = generateVariableCode(fullPath, baseName, isVue3);
         const edit = new vscode.WorkspaceEdit();
-        edit.insert(document.uri, returnPosition, `\n${varCode.vue3Setup}`);
+        edit.insert(
+          document.uri,
+          new vscode.Position(setupPosition.line + 1, 0),
+          varCode.vue3Setup
+        );
         await vscode.workspace.applyEdit(edit);
         await ensureSetupReturnHasName(
           document,
@@ -690,30 +465,18 @@ async function generateVariable(
     // Vue2 Options API
     const dataMatch = scriptContent.match(/data\s*\(\)\s*{\s*return\s*{/);
     if (dataMatch) {
-      const openAbs =
-        scriptStartIndex + dataMatch.index + dataMatch[0].length - 1;
-      const closeAbs = findClosingBraceIndex(text, openAbs);
-      if (closeAbs > openAbs) {
-        const parts = fullPath.split(".");
-        let value = "''";
-        if (parts.length > 1) {
-          let nestedObj = "{}";
-          for (let i = parts.length - 1; i >= 1; i--) {
-            if (i === parts.length - 1) nestedObj = `{ ${parts[i]}: '' }`;
-            else nestedObj = `{ ${parts[i]}: ${nestedObj} }`;
-          }
-          value = nestedObj;
-        }
-        await insertProperty(
-          document,
-          text,
-          openAbs,
-          closeAbs,
-          baseName,
-          value,
-          3
-        );
-      }
+      const dataStartIndex =
+        scriptStartIndex + dataMatch.index + dataMatch[0].length;
+      const dataPosition = document.positionAt(dataStartIndex);
+
+      const varCode = generateVariableCode(fullPath, baseName, isVue3);
+      const edit = new vscode.WorkspaceEdit();
+      edit.insert(
+        document.uri,
+        new vscode.Position(dataPosition.line + 1, 0),
+        varCode.vue2
+      );
+      await vscode.workspace.applyEdit(edit);
       vscode.window.showInformationMessage(`已生成 Vue2 变量: ${fullPath}`);
     } else {
       // 没有 data 函数，创建一个
@@ -1062,9 +825,7 @@ async function insertProperty(
     const indentMatch =
       lastNl >= 0 ? text.slice(lastNl + 1, closeAbs).match(/^\s*/) : null;
     const indent = indentMatch ? indentMatch[0] : "\t".repeat(indentTabs || 2);
-    const segment = lastNl >= 0 ? text.slice(lastNl + 1, closeAbs) : "";
-    const onlyWhitespace = /^\s*$/.test(segment);
-    const prefix = onlyWhitespace ? "" : "\n";
+    const prefix = text[closeAbs - 1] === "\n" ? "" : "\n";
     const addition = additionOverride ?? `${key}: ${value}`;
     edit.insert(
       document.uri,
