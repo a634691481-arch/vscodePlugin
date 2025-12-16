@@ -25,6 +25,14 @@ const changeeeeee = (item) => {
 const changeeeeee333 = () => {
   // TODO: 实现方法逻辑
 };
+const submit = () => {
+	// TODO: 实现方法逻辑
+}
+
+const change = () => {
+	// TODO: 实现方法逻辑
+}
+
 </script>
 
 <style lang="scss" scoped></style>
