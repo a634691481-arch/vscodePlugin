@@ -146,7 +146,38 @@ function activate(context) {
     }
   );
 
-  context.subscriptions.push(disposable, generateVueCode);
+  const definitionProvider = {
+    provideDefinition(document, position) {
+      const text = document.getText();
+      const line = document.lineAt(position.line).text;
+      const wordRange = document.getWordRangeAtPosition(
+        position,
+        /[A-Za-z_$][A-Za-z0-9_$]*/
+      );
+      if (!wordRange) return null;
+      const name = document.getText(wordRange);
+      const isVue3 =
+        text.includes("setup()") ||
+        text.includes("<script setup>") ||
+        /import\s+{[^}]*ref[^}]*}\s+from\s+['"]vue['"]/.test(text);
+      if (!isMethodReference(line, name)) return null;
+      const loc = findMethodDefinition(text, name, isVue3);
+      if (!loc) return null;
+      const target = document.positionAt(loc.index);
+      return new vscode.Location(document.uri, target);
+    },
+  };
+  const selector = [
+    { language: "vue", scheme: "file" },
+    { language: "javascript", scheme: "file" },
+    { language: "typescript", scheme: "file" },
+  ];
+  const defReg = vscode.languages.registerDefinitionProvider(
+    selector,
+    definitionProvider
+  );
+
+  context.subscriptions.push(disposable, generateVueCode, defReg);
 }
 
 /**

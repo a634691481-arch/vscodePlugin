@@ -22,7 +22,12 @@
     "Snippets",
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:vscodeplugin.generateVueCode",
+    "onLanguage:vue",
+    "onLanguage:javascript",
+    "onLanguage:typescript"
+  ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
