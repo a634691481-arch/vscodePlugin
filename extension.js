@@ -842,7 +842,6 @@ async function generateMethod(
         document.uri,
         scriptEndPosition,
         `const ${methodName} = (${params}) => {
-\t// TODO: 实现方法逻辑
 }
 
 `
@@ -869,7 +868,6 @@ async function generateMethod(
           document.uri,
           new vscode.Position(returnPosition.line, 0),
           `\t\tconst ${methodName} = (${params}) => {
-\t\t\t// TODO: 实现方法逻辑
 \t\t}
 
 `
@@ -898,7 +896,7 @@ async function generateMethod(
         edit.insert(
           document.uri,
           insertPos,
-          `\n\t\t${methodName}(${params}) {\n\t\t\t// TODO: 实现方法逻辑\n\t\t},\n`
+          `\n\t\t${methodName}(${params}) {\n\t\t},\n`
         );
         await vscode.workspace.applyEdit(edit);
         vscode.window.showInformationMessage(`已生成 Vue2 方法: ${methodName}`);
@@ -918,7 +916,6 @@ async function generateMethod(
           new vscode.Position(exportPosition.line + 1, 0),
           `\tmethods: {
 \t\t${methodName}(${params}) {
-\t\t\t// TODO: 实现方法逻辑
 \t\t}
 \t},
 `
