@@ -45,6 +45,11 @@
         "command": "vscodeplugin.generateVueCode",
         "key": "alt+enter",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
+      },
+      {
+        "command": "editor.action.revealDefinition",
+        "key": "alt+d",
+        "when": "editorTextFocus"
       }
     ]
   },
