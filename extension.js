@@ -9,19 +9,27 @@ const vscode = require("vscode");
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
-  // Use the console to output diagnostic information (console.log) and errors (console.error)
-  // This line of code will only be executed once when your extension is activated
   console.log('Congratulations, your extension "vscodeplugin" is now active!');
 
-  // The command has been defined in the package.json file
-  // Now provide the implementation of the command with  registerCommand
-  // The commandId parameter must match the command field in package.json
+  // 启用 Alt+点击 跳转的命令
+  const enableAltClick = vscode.commands.registerCommand(
+    "vscodeplugin.enableAltClick",
+    async function () {
+      const config = vscode.workspace.getConfiguration();
+      await config.update(
+        "editor.multiCursorModifier",
+        "ctrlCmd",
+        vscode.ConfigurationTarget.Global
+      );
+      vscode.window.showInformationMessage(
+        "✅ 已启用 Alt+点击 跳转！现在 Ctrl+点击 用于多光标"
+      );
+    }
+  );
+
   const disposable = vscode.commands.registerCommand(
     "vscodeplugin.helloWorld",
     function () {
-      // The code you place here will be executed every time your command is executed
-
-      // Display a message box to the user
       vscode.window.showInformationMessage("Hello World from vscodePlugin!");
     }
   );
@@ -156,6 +164,15 @@ function activate(context) {
       );
       if (!wordRange) return null;
       const name = document.getText(wordRange);
+
+      // 🎯 处理 Vue 组件跳转
+      if (line.includes("<" + name) || line.includes("</" + name)) {
+        const componentLoc = findComponentImport(text, name, document);
+        if (componentLoc) {
+          return componentLoc;
+        }
+      }
+
       const isVue3 =
         text.includes("setup()") ||
         text.includes("<script setup>") ||
@@ -203,7 +220,105 @@ function activate(context) {
     definitionProvider
   );
 
-  context.subscriptions.push(disposable, generateVueCode, defReg);
+  context.subscriptions.push(
+    disposable,
+    enableAltClick,
+    generateVueCode,
+    defReg
+  );
+}
+
+/**
+ * 查找 Vue 组件的导入路径
+ */
+function findComponentImport(text, componentName, document) {
+  const fs = require("fs");
+  const path = require("path");
+
+  // 转换组件名：MyComponent -> my-component 或 myComponent
+  const kebabName = componentName
+    .replace(/([A-Z])/g, "-$1")
+    .toLowerCase()
+    .replace(/^-/, "");
+  const camelName =
+    componentName.charAt(0).toLowerCase() + componentName.slice(1);
+
+  // 匹配 import 语句
+  const patterns = [
+    new RegExp(
+      `import\\s+${componentName}\\s+from\\s+['"]([^'"]+)['"]`,
+      "g"
+    ),
+    new RegExp(
+      `import\\s*{[^}]*\\b${componentName}\\b[^}]*}\\s*from\\s+['"]([^'"]+)['"]`,
+      "g"
+    ),
+  ];
+
+  // 获取当前文件所在目录
+  const currentFileDir = document ? path.dirname(document.uri.fsPath) : null;
+
+  for (const pattern of patterns) {
+    const match = pattern.exec(text);
+    if (match && match[1]) {
+      const importPath = match[1];
+
+      // 处理相对路径
+      if (importPath.startsWith("./") || importPath.startsWith("../")) {
+        if (currentFileDir) {
+          const possibleExtensions = [
+            "",
+            ".vue",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            "/index.vue",
+            "/index.js",
+            "/index.ts",
+          ];
+
+          for (const ext of possibleExtensions) {
+            const fullPath = path.resolve(currentFileDir, importPath + ext);
+            if (fs.existsSync(fullPath)) {
+              const uri = vscode.Uri.file(fullPath);
+              return new vscode.Location(uri, new vscode.Position(0, 0));
+            }
+          }
+        }
+      }
+
+      // 处理 @ 别名（src 目录）
+      if (importPath.startsWith("@/")) {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+          const rootPath = workspaceFolders[0].uri.fsPath;
+          const srcPath = path.join(rootPath, "src", importPath.slice(2));
+          const possibleExtensions = [
+            "",
+            ".vue",
+            ".js",
+            ".ts",
+            ".jsx",
+            ".tsx",
+            "/index.vue",
+            "/index.js",
+            "/index.ts",
+          ];
+
+          for (const ext of possibleExtensions) {
+            const fullPath = srcPath + ext;
+            if (fs.existsSync(fullPath)) {
+              const uri = vscode.Uri.file(fullPath);
+              return new vscode.Location(uri, new vscode.Position(0, 0));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -898,7 +1013,11 @@ async function generateMethod(
         edit.insert(
           document.uri,
           insertPos,
-          `\n\t\t${methodName}(${params}) {\n\t\t\t// TODO: 实现方法逻辑\n\t\t},\n`
+          `
+\t\t${methodName}(${params}) {
+\t\t\t// TODO: 实现方法逻辑
+\t\t},
+`
         );
         await vscode.workspace.applyEdit(edit);
         vscode.window.showInformationMessage(`已生成 Vue2 方法: ${methodName}`);

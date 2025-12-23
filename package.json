@@ -38,6 +38,10 @@
       {
         "command": "vscodeplugin.generateVueCode",
         "title": "生成 Vue 变量/方法"
+      },
+      {
+        "command": "vscodeplugin.enableAltClick",
+        "title": "启用 Alt+点击 跳转"
       }
     ],
     "keybindings": [
@@ -46,7 +50,18 @@
         "key": "alt+enter",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Vue 变量/方法生成器",
+      "properties": {
+        "editor.multiCursorModifier": {
+          "type": "string",
+          "default": "ctrlCmd",
+          "description": "修改多光标修饰键以使用 Alt+点击 进行跳转"
+        }
+      }
+    }
   },
   "scripts": {
     "lint": "eslint .",
