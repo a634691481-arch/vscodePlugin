@@ -42,8 +42,33 @@
       {
         "command": "vscodeplugin.enableAltClick",
         "title": "启用 Alt+点击 跳转"
+      },
+      {
+        "command": "vscodeplugin.copyVuePath",
+        "title": "📋 复制Vue页面路径"
       }
     ],
+    "submenus": [
+      {
+        "id": "yy.submenu",
+        "label": "🚀 Vue工具"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "yy.submenu",
+          "group": "navigation",
+          "when": "resourceExtname == .vue"
+        }
+      ],
+      "yy.submenu": [
+        {
+          "command": "vscodeplugin.copyVuePath",
+          "group": "navigation"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "vscodeplugin.generateVueCode",
