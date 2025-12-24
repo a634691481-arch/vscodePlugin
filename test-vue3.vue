@@ -1,38 +1,40 @@
 <template>
-  <div>
-    <view @click="submit">提交</view>
-    <view @change="change">提交</view>
-
-    <view @change="changeeeeee333">提交</view>
-    <view @change="changeeeeee">提交</view>
-    <view @change="changeeeeee(item)">提交</view>
-    <view>
-      <!-- {{ statsBuffer.status }} -->
-      {{ statsBuffer.ddddddddddddddddddd }}
-      {{ ttt.ddddddddddddddddddd }}
-      {{ uuuu.ddddddddddddddddddd }}
-    </view>
+  <div class="container-wrapper">
+    <div class="header-section">
+      <div class="title-box"></div>
+      <div class="nav-menu"></div>
+    </div>
+    <div class="content-area">
+      <div class="sidebar-panel"></div>
+      <div class="main-content"></div>
+    </div>
+    <div class="footer-bar"></div>
   </div>
 </template>
 
-<script setup>
-const statsBuffer = ref({ ddddddddddddddddddd: "" });
-const ttt = ref({ ddddddddddddddddddd: "" });
-const uuuu = ref({ ddddddddddddddddddd: "" });
-const changeeeeee = (item) => {
-  // TODO: 实现方法逻辑
-};
-const changeeeeee333 = () => {
-  // TODO: 实现方法逻辑
-};
-const submit = () => {
-	// TODO: 实现方法逻辑
-}
-
-const change = () => {
-	// TODO: 实现方法逻辑
-}
-
+<script>
+export default {};
 </script>
 
-<style lang="scss" scoped></style>
+<style scoped lang="scss">
+.container-wrapper {
+  .header-section {
+    .title-box {
+    }
+
+    .nav-menu {
+    }
+  }
+
+  .content-area {
+    .sidebar-panel {
+    }
+
+    .main-content {
+    }
+  }
+
+  .footer-bar {
+  }
+}
+</style>
