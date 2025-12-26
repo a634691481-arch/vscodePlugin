@@ -13,28 +13,11 @@
 </template>
 
 <script>
-export default {};
+export default {
+  data() {
+    return {
+      key: "",
+    };
+  },
+};
 </script>
-
-<style scoped lang="scss">
-.container-wrapper {
-  .header-section {
-    .title-box {
-    }
-
-    .nav-menu {
-    }
-  }
-
-  .content-area {
-    .sidebar-panel {
-    }
-
-    .main-content {
-    }
-  }
-
-  .footer-bar {
-  }
-}
-</style>
