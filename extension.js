@@ -11,6 +11,7 @@ const {
   registerGenerateVueCodeCommand,
 } = require("./src/commands/generateVueCode");
 const { registerCopyVuePathCommand } = require("./src/commands/copyVuePath");
+const { registerInsertConsoleLogCommand } = require("./src/commands/insertConsoleLog");
 
 // 提供器模块
 const {
@@ -30,6 +31,7 @@ function activate(context) {
     registerEnableAltClickCommand(),
     registerGenerateVueCodeCommand(),
     registerCopyVuePathCommand(),
+    registerInsertConsoleLogCommand(),
   ];
 
   // 注册定义提供器

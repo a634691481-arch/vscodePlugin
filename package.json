@@ -32,10 +32,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "vscodeplugin.helloWorld",
-        "title": "Hello World"
-      },
-      {
         "command": "vscodeplugin.generateVueCode",
         "title": "生成 Vue 变量/方法"
       },
@@ -46,6 +42,10 @@
       {
         "command": "vscodeplugin.copyVuePath",
         "title": "📋 复制Vue页面路径"
+      },
+      {
+        "command": "vscodeplugin.insertConsoleLog",
+        "title": "🖨️ 插入 console.log"
       }
     ],
     "submenus": [
@@ -73,6 +73,11 @@
       {
         "command": "vscodeplugin.generateVueCode",
         "key": "alt+enter",
+        "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
+      },
+      {
+        "command": "vscodeplugin.insertConsoleLog",
+        "key": "ctrl+shift+l",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
       }
     ],
