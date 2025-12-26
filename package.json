@@ -23,10 +23,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:vscodeplugin.generateVueCode",
-    "onLanguage:vue",
-    "onLanguage:javascript",
-    "onLanguage:typescript"
+    "*"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -89,6 +86,16 @@
           "type": "string",
           "default": "ctrlCmd",
           "description": "修改多光标修饰键以使用 Alt+点击 进行跳转"
+        },
+        "gohome.hour": {
+          "type": "number",
+          "default": 18,
+          "description": "下班时间 - 小时（24小时制）"
+        },
+        "gohome.minute": {
+          "type": "number",
+          "default": 0,
+          "description": "下班时间 - 分钟"
         }
       }
     }

@@ -18,6 +18,9 @@ const {
   registerDefinitionProvider,
 } = require("./src/providers/definitionProvider");
 
+// 功能模块
+const { registerGoHome } = require("./src/features/goHome");
+
 /**
  * 插件激活入口
  * @param {import('vscode').ExtensionContext} context
@@ -37,8 +40,11 @@ function activate(context) {
   // 注册定义提供器
   const defReg = registerDefinitionProvider();
 
+  // 注册下班提醒
+  const goHome = registerGoHome();
+
   // 推送到订阅列表
-  context.subscriptions.push(...commands, defReg);
+  context.subscriptions.push(...commands, defReg, goHome);
 }
 
 function deactivate() {}
