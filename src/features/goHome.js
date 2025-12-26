@@ -10,6 +10,7 @@ const NotificationMessage = "🎉 到点啦 该下班了!";
 function getConfig() {
   const config = vscode.workspace.getConfiguration("gohome");
   return {
+    prefix: config.get("prefix", ">>"),
     hour: config.get("hour", 18),
     minute: config.get("minute", 0),
   };
@@ -34,7 +35,7 @@ function getMessage() {
   const minute = Math.floor((duration / 1000 / 60) % 60);
   const second = Math.floor((duration / 1000) % 60);
 
-  let timeStr = ">> 距离下班还有 ";
+  let timeStr = `${config.prefix} 距离下班还有 `;
   if (hour) timeStr += `${hour}小时`;
   if (minute) timeStr += `${minute}分钟`;
   if (second) timeStr += `${second}秒`;

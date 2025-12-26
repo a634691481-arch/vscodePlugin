@@ -87,6 +87,11 @@
           "default": "ctrlCmd",
           "description": "修改多光标修饰键以使用 Alt+点击 进行跳转"
         },
+        "gohome.prefix": {
+          "type": "string",
+          "default": ">>",
+          "description": "下班倒计时前缀文字"
+        },
         "gohome.hour": {
           "type": "number",
           "default": 18,
