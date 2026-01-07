@@ -2,7 +2,7 @@
   "name": "autovue-companion",
   "displayName": "AutoVue Companion",
   "description": "在 Vue 2 和 Vue 3 项目中通过 Alt+Enter 快速生成变量和方法,支持多层嵌套结构和智能跳转",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "publisher": "vue-variable-method-generator",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -28,14 +28,6 @@
   "main": "./extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "vscodeplugin.generateVueCode",
-        "title": "生成 Vue 变量/方法"
-      },
-      {
-        "command": "vscodeplugin.enableAltClick",
-        "title": "启用 Alt+点击 跳转"
-      },
       {
         "command": "vscodeplugin.copyVuePath",
         "title": "📋 复制Vue页面路径"
@@ -76,11 +68,6 @@
     },
     "keybindings": [
       {
-        "command": "vscodeplugin.generateVueCode",
-        "key": "alt+enter",
-        "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
-      },
-      {
         "command": "vscodeplugin.insertConsoleLog",
         "key": "ctrl+shift+l",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
@@ -98,7 +85,7 @@
     ],
     "configuration": {
       "type": "object",
-      "title": "Vue 变量/方法生成器",
+      "title": "AutoVue Companion",
       "properties": {
         "editor.multiCursorModifier": {
           "type": "string",

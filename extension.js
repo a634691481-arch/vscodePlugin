@@ -1,15 +1,8 @@
 // ============================================================
-// Vue 变量/方法生成器 - VSCode 插件主入口
+// AutoVue Companion - VSCode 插件主入口
 // ============================================================
 
 // 命令模块
-const {
-  registerHelloWorldCommand,
-  registerEnableAltClickCommand,
-} = require("./src/commands/basicCommands");
-const {
-  registerGenerateVueCodeCommand,
-} = require("./src/commands/generateVueCode");
 const { registerCopyVuePathCommand } = require("./src/commands/copyVuePath");
 const {
   registerInsertConsoleLogCommand,
@@ -17,11 +10,6 @@ const {
 const {
   registerBracketSelectCommands,
 } = require("./src/commands/bracketSelect");
-
-// 提供器模块
-const {
-  registerDefinitionProvider,
-} = require("./src/providers/definitionProvider");
 
 // 功能模块
 const { registerGoHome } = require("./src/features/goHome");
@@ -31,26 +19,20 @@ const { registerGoHome } = require("./src/features/goHome");
  * @param {import('vscode').ExtensionContext} context
  */
 function activate(context) {
-  console.log("🚀 Vue 变量/方法生成器已激活");
+  console.log("🚀 AutoVue Companion 已激活");
 
   // 注册所有命令
   const commands = [
-    registerHelloWorldCommand(),
-    registerEnableAltClickCommand(),
-    registerGenerateVueCodeCommand(),
     registerCopyVuePathCommand(),
     registerInsertConsoleLogCommand(),
     ...registerBracketSelectCommands(),
   ];
 
-  // 注册定义提供器
-  const defReg = registerDefinitionProvider();
-
   // 注册下班提醒
   const goHome = registerGoHome();
 
   // 推送到订阅列表
-  context.subscriptions.push(...commands, defReg, goHome);
+  context.subscriptions.push(...commands, goHome);
 }
 
 function deactivate() {}
