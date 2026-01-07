@@ -43,6 +43,14 @@
       {
         "command": "vscodeplugin.insertConsoleLog",
         "title": "🖨️ 插入 console.log"
+      },
+      {
+        "command": "vscodeplugin.bracketSelect",
+        "title": "🎯 括号选择（不含括号）并复制"
+      },
+      {
+        "command": "vscodeplugin.bracketSelectInclude",
+        "title": "📦 括号选择（含括号）并复制"
       }
     ],
     "submenus": [
@@ -76,6 +84,16 @@
         "command": "vscodeplugin.insertConsoleLog",
         "key": "ctrl+shift+l",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
+      },
+      {
+        "command": "vscodeplugin.bracketSelect",
+        "key": "alt+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "vscodeplugin.bracketSelectInclude",
+        "key": "ctrl+alt+a",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": {

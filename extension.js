@@ -11,7 +11,12 @@ const {
   registerGenerateVueCodeCommand,
 } = require("./src/commands/generateVueCode");
 const { registerCopyVuePathCommand } = require("./src/commands/copyVuePath");
-const { registerInsertConsoleLogCommand } = require("./src/commands/insertConsoleLog");
+const {
+  registerInsertConsoleLogCommand,
+} = require("./src/commands/insertConsoleLog");
+const {
+  registerBracketSelectCommands,
+} = require("./src/commands/bracketSelect");
 
 // 提供器模块
 const {
@@ -35,6 +40,7 @@ function activate(context) {
     registerGenerateVueCodeCommand(),
     registerCopyVuePathCommand(),
     registerInsertConsoleLogCommand(),
+    ...registerBracketSelectCommands(),
   ];
 
   // 注册定义提供器
