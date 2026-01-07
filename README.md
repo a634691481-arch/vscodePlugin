@@ -13,6 +13,7 @@
 - [📋 复制路径示例](#-复制路径示例)
 - [🖨️ 快速打印示例](#-快速打印示例)
 - [🏠 下班提醒](#-下班提醒)
+- [🎯 括号选择示例](#-括号选择示例)
 - [🎨 高级场景](#-高级场景)
 - [💡 实用技巧](#-实用技巧)
 
@@ -22,14 +23,16 @@
 
 ### ✨ 功能概览
 
-| 功能             | 快捷键                     | 说明                        |
-| ---------------- | -------------------------- | --------------------------- |
-| 🎯 生成变量/方法 | `Alt + Enter`              | 光标在变量/方法上自动生成   |
-| 🧭 跳转到定义    | `Ctrl/Cmd + 点击` 或 `F12` | 快速定位到变量/方法定义     |
-| 🔙 返回上一位置  | `Alt + ←`                  | 从定义返回使用处            |
-| 📋 复制 Vue 路径 | 右键菜单 → 🚀 y66          | 复制相对路径（无.vue 后缀） |
-| 🖨️ 插入 console.log | `Ctrl + Shift + L`     | 快速插入带函数名的打印语句  |
-| 🏠 下班提醒         | 自动                   | 状态栏显示下班倒计时        |
+| 功能                | 快捷键                     | 说明                         |
+| ------------------- | -------------------------- | ---------------------------- |
+| 🎯 生成变量/方法    | `Alt + Enter`              | 光标在变量/方法上自动生成    |
+| 🧭 跳转到定义       | `Ctrl/Cmd + 点击` 或 `F12` | 快速定位到变量/方法定义      |
+| 🔙 返回上一位置     | `Alt + ←`                  | 从定义返回使用处             |
+| 📋 复制 Vue 路径    | 右键菜单 → 🚀 y66          | 复制相对路径（无.vue 后缀）  |
+| 🖨️ 插入 console.log | `Ctrl + Shift + L`         | 快速插入带函数名的打印语句   |
+| 🏠 下班提醒         | 自动                       | 状态栏显示下班倒计时         |
+| 🎯 括号选择（不含） | `Alt + A`                  | 快速选中括号内容并自动复制   |
+| 📦 括号选择（含括） | `Ctrl + Alt + A`           | 选中括号内容（含括号）并复制 |
 
 ---
 
@@ -468,8 +471,8 @@ const componentPath = '/src/views/user/Profile'
 const queryList = (page, limit) => {
   // 光标放在 page 上，按 Ctrl+Shift+L
   // 自动在下一行生成 👇
-  console.log('🚀 ~ :2 ~ queryList ~ page:', page)
-}
+  console.log("🚀 ~ :2 ~ queryList ~ page:", page);
+};
 ```
 
 **操作步骤**：
@@ -489,13 +492,13 @@ const queryList = (page, limit) => {
 const queryList = (page, limit) => {
   // 选中 page 和 limit，按 Ctrl+Shift+L
   // 自动生成 👇
-  console.log('🚀 ~ :2 ~ queryList ~ page:', page)
-  console.log('🚀 ~ :2 ~ queryList ~ limit:', limit)
-  
+  console.log("🚀 ~ :2 ~ queryList ~ page:", page);
+  console.log("🚀 ~ :2 ~ queryList ~ limit:", limit);
+
   setTimeout(() => {
-    paging.value?.complete([1])
-  }, 1000)
-}
+    paging.value?.complete([1]);
+  }, 1000);
+};
 ```
 
 **操作步骤**：
@@ -509,16 +512,17 @@ const queryList = (page, limit) => {
 
 ### 🎨 输出格式说明
 
-| 元素 | 说明 | 示例 |
-| ---- | ---- | ---- |
-| 🚀 | 标识符，方便搜索 | `🚀` |
-| :行号 | 当前代码行号 | `:63` |
-| 函数名 | 所在函数的名称 | `queryList` |
-| 变量名 | 打印的变量名 | `page` |
+| 元素   | 说明             | 示例        |
+| ------ | ---------------- | ----------- |
+| 🚀     | 标识符，方便搜索 | `🚀`        |
+| :行号  | 当前代码行号     | `:63`       |
+| 函数名 | 所在函数的名称   | `queryList` |
+| 变量名 | 打印的变量名     | `page`      |
 
 **完整格式**：
+
 ```javascript
-console.log('🚀 ~ :63 ~ queryList ~ page:', page)
+console.log("🚀 ~ :63 ~ queryList ~ page:", page);
 //          │    │     │           │      └─ 变量值
 //          │    │     │           └─ 变量名
 //          │    │     └─ 函数名
@@ -567,13 +571,13 @@ methods: {
 const processOrder = (orderId, userId, items, options) => {
   // 多选 orderId, userId, items, options
   // 按 Ctrl+Shift+L 一次性生成所有打印
-  console.log('🚀 ~ :2 ~ processOrder ~ orderId:', orderId)
-  console.log('🚀 ~ :2 ~ processOrder ~ userId:', userId)
-  console.log('🚀 ~ :2 ~ processOrder ~ items:', items)
-  console.log('🚀 ~ :2 ~ processOrder ~ options:', options)
-  
+  console.log("🚀 ~ :2 ~ processOrder ~ orderId:", orderId);
+  console.log("🚀 ~ :2 ~ processOrder ~ userId:", userId);
+  console.log("🚀 ~ :2 ~ processOrder ~ items:", items);
+  console.log("🚀 ~ :2 ~ processOrder ~ options:", options);
+
   // 业务逻辑...
-}
+};
 ```
 
 **清理调试代码**：
@@ -614,18 +618,18 @@ const processOrder = (orderId, userId, items, options) => {
 
 在 VS Code 设置中搜索 `gohome` 进行配置：
 
-| 配置项 | 类型 | 默认值 | 说明 |
-| ------ | ---- | ------ | ---- |
-| `gohome.hour` | number | 18 | 下班时间 - 小时（24小时制） |
-| `gohome.minute` | number | 0 | 下班时间 - 分钟 |
+| 配置项          | 类型   | 默认值 | 说明                         |
+| --------------- | ------ | ------ | ---------------------------- |
+| `gohome.hour`   | number | 18     | 下班时间 - 小时（24 小时制） |
+| `gohome.minute` | number | 0      | 下班时间 - 分钟              |
 
 **配置示例**：
 
 ```json
 // settings.json
 {
-  "gohome.hour": 18,      // 下午6点
-  "gohome.minute": 30     // 30分
+  "gohome.hour": 18, // 下午6点
+  "gohome.minute": 30 // 30分
 }
 ```
 
@@ -633,11 +637,11 @@ const processOrder = (orderId, userId, items, options) => {
 
 | 下班时间 | hour | minute |
 | -------- | ---- | ------ |
-| 17:30 | 17 | 30 |
-| 18:00 | 18 | 0 |
-| 18:30 | 18 | 30 |
-| 19:00 | 19 | 0 |
-| 21:00 | 21 | 0 |
+| 17:30    | 17   | 30     |
+| 18:00    | 18   | 0      |
+| 18:30    | 18   | 30     |
+| 19:00    | 19   | 0      |
+| 21:00    | 21   | 0      |
 
 ---
 
@@ -646,6 +650,223 @@ const processOrder = (orderId, userId, items, options) => {
 1. **查看倒计时**：直接看 VS Code 左下角状态栏
 2. **修改下班时间**：`Ctrl + ,` 打开设置，搜索 `gohome`
 3. **临时加班**：修改 `gohome.hour` 为更晚的时间
+
+---
+
+## 🎯 括号选择示例
+
+### 🚀 功能说明
+
+快速选中括号内的代码并自动复制到剪贴板，支持多种括号类型和嵌套结构。无需手动复制，选中即刻复制！
+
+---
+
+### 📝 基础使用
+
+**场景**：快速选中函数参数或对象内容
+
+```javascript
+const arr = [1, 2, 3, 4, 5];
+//          ↑ 光标在这里，按 Alt+A
+// 结果: 选中 1, 2, 3, 4, 5 并复制
+```
+
+**操作步骤**：
+
+1. 📍 将光标放在括号内部
+2. ⌨️ 按下 `Alt + A`（选中内容，不含括号）
+3. ✅ 内容立即复制到剪贴板
+
+---
+
+### 🎯 选择模式对比
+
+**模式 1：`Alt + A` - 不含括号**
+
+```javascript
+const obj = { name: "test", value: 123 };
+//           ↑ 光标在这里，按 Alt+A
+// 选中: name: "test", value: 123
+// 效果: 复制括号内的内容，不含 {}
+```
+
+**模式 2：`Ctrl + Alt + A` - 含括号**
+
+```javascript
+const obj = { name: "test", value: 123 };
+//           ↑ 光标在这里，按 Ctrl+Alt+A
+// 选中: { name: "test", value: 123 }
+// 效果: 复制整个括号内容，含 {}
+```
+
+---
+
+### 🌈 支持的括号类型
+
+| 括号类型 | 示例                   | 说明             |
+| -------- | ---------------------- | ---------------- |
+| 圆括号   | `(a, b, c)`            | 函数参数、表达式 |
+| 花括号   | `{ x: 1, y: 2 }`       | 对象、代码块     |
+| 方括号   | `[1, 2, 3]`            | 数组、访问       |
+| 尖括号   | `<Tag props />`        | JSX/Vue 标签     |
+| 引号     | `"string"` 或 `'text'` | 字符串           |
+
+---
+
+### 💡 嵌套扩展示例
+
+**多层嵌套时逐步扩展**：
+
+```javascript
+const data = {
+  user: {
+    profile: {
+      name: "张三",
+      age: 25,
+    },
+  },
+};
+
+// 步骤 1: 光标在 name 上，按 Alt+A
+// 选中: "张三" （最内层）
+
+// 步骤 2: 继续按 Alt+A
+// 选中: name: "张三", age: 25 （第二层）
+
+// 步骤 3: 继续按 Alt+A
+// 选中: profile: { name: "张三", age: 25 } （第三层）
+
+// 步骤 4: 继续按 Alt+A
+// 选中: user: { profile: { ... } } （第四层）
+```
+
+---
+
+### 🎁 实用场景
+
+**场景 1：复制函数参数**
+
+```javascript
+function processData(userId, userName, options) {
+  //                  ↑ 光标在这里，按 Alt+A
+  // 选中: userId, userName, options
+  // 自动复制到剪贴板！
+}
+```
+
+**场景 2：复制对象属性**
+
+```javascript
+const config = {
+  apiUrl: "https://api.example.com",
+  timeout: 5000,
+  retries: 3,
+};
+
+// 光标在 config 内，按 Ctrl+Alt+A
+// 选中整个对象（含大括号）并复制
+```
+
+**场景 3：复制数组元素**
+
+```javascript
+const numbers = [10, 20, 30, 40, 50];
+//              ↑ 按 Alt+A
+// 选中: 10, 20, 30, 40, 50
+// 快速粘贴到其他地方！
+```
+
+**场景 4：复制 JSX/Vue 标签属性**
+
+```jsx
+<Component title="标题" description="描述" isLoading={true} />
+// 光标在属性区，按 Alt+A
+// 轻松选中并复制所有属性内容
+```
+
+---
+
+### 🔥 高级技巧
+
+**1. 多光标同时选择**
+
+```javascript
+// 使用 Ctrl+D 或 Alt+点击 选中多个相同的括号区域
+const arr1 = [1, 2, 3];
+const arr2 = [4, 5, 6];
+const arr3 = [7, 8, 9];
+
+// 多选后按 Alt+A，会同时处理所有选区！
+```
+
+**2. 快速代码重构**
+
+```javascript
+// 旧代码
+const formatData = (a, b, c) => {
+  //               ↑ 按 Alt+A 复制参数
+};
+
+// 粘贴到新位置
+function formatDataV2(a, b, c) {
+  // 粘贴的参数自动复制进来
+}
+```
+
+**3. 快速转移代码块**
+
+```javascript
+if (condition) {
+  //↑ 光标在这里，按 Ctrl+Alt+A
+  // 选中: { ... } 整个代码块
+  // 复制到其他地方使用
+}
+```
+
+---
+
+### ⌨️ 快捷键速查
+
+| 快捷键           | 功能           | 场景         |
+| ---------------- | -------------- | ------------ |
+| `Alt + A`        | 选中括号内容   | 日常代码复制 |
+| `Ctrl + Alt + A` | 选中含括号内容 | 需要括号本身 |
+| 多次按           | 向外扩展选区   | 处理嵌套结构 |
+
+---
+
+### 🎨 最佳实践
+
+#### ✅ DO（推荐）
+
+```javascript
+// ✅ 在函数参数上使用
+const getData = (userId, pageSize, filter) => {
+  // Alt+A 快速复制参数
+};
+
+// ✅ 在对象内容上使用
+const config = {
+  database: "postgres",
+  host: "localhost",
+};
+// Alt+A 快速复制配置内容
+
+// ✅ 在数组元素上使用
+const tags = ["vue", "javascript", "typescript"];
+// Alt+A 快速复制标签列表
+```
+
+#### ❌ DON'T（避免）
+
+```javascript
+// ❌ 注意特殊情况
+const str = "hello (world)";
+// 括号选择可能包含字符串中的括号，需要注意位置
+
+// ❌ 避免在注释中使用
+// 这里有 (注释) Alt+A 可能产生意外结果
+```
 
 ---
 
