@@ -1,8 +1,8 @@
 {
   "name": "autovue-companion",
   "displayName": "AutoVue Companion",
-  "description": "在 Vue 2 和 Vue 3 项目中通过 Alt+Enter 快速生成变量和方法,支持多层嵌套结构和智能跳转",
-  "version": "1.1.4",
+  "description": "AutoVue Companion",
+  "version": "2.0.0",
   "publisher": "vue-variable-method-generator",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -30,39 +30,19 @@
     "commands": [
       {
         "command": "vscodeplugin.copyVuePath",
-        "title": "📋 复制Vue页面路径"
+        "title": "y66 📋 复制Vue页面路径"
       },
       {
         "command": "vscodeplugin.insertConsoleLog",
         "title": "🖨️ 插入 console.log"
-      },
-      {
-        "command": "vscodeplugin.bracketSelect",
-        "title": "🎯 括号选择（不含括号）并复制"
-      },
-      {
-        "command": "vscodeplugin.bracketSelectInclude",
-        "title": "📦 括号选择（含括号）并复制"
-      }
-    ],
-    "submenus": [
-      {
-        "id": "yy.submenu",
-        "label": "🚀 y66"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "submenu": "yy.submenu",
+          "command": "vscodeplugin.copyVuePath",
           "group": "navigation",
           "when": "resourceExtname == .vue"
-        }
-      ],
-      "yy.submenu": [
-        {
-          "command": "vscodeplugin.copyVuePath",
-          "group": "navigation"
         }
       ]
     },
@@ -71,16 +51,6 @@
         "command": "vscodeplugin.insertConsoleLog",
         "key": "ctrl+shift+l",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
-      },
-      {
-        "command": "vscodeplugin.bracketSelect",
-        "key": "alt+a",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "vscodeplugin.bracketSelectInclude",
-        "key": "ctrl+alt+a",
-        "when": "editorTextFocus"
       }
     ],
     "configuration": {
@@ -94,7 +64,7 @@
         },
         "gohome.prefix": {
           "type": "string",
-          "default": ">>",
+          "default": ">>>>>",
           "description": "下班倒计时前缀文字"
         },
         "gohome.hour": {

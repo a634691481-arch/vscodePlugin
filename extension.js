@@ -7,12 +7,12 @@ const { registerCopyVuePathCommand } = require("./src/commands/copyVuePath");
 const {
   registerInsertConsoleLogCommand,
 } = require("./src/commands/insertConsoleLog");
-const {
-  registerBracketSelectCommands,
-} = require("./src/commands/bracketSelect");
 
 // 功能模块
 const { registerGoHome } = require("./src/features/goHome");
+const {
+  registerSplitViewDefinition,
+} = require("./src/features/splitViewDefinition");
 
 /**
  * 插件激活入口
@@ -25,14 +25,16 @@ function activate(context) {
   const commands = [
     registerCopyVuePathCommand(),
     registerInsertConsoleLogCommand(),
-    ...registerBracketSelectCommands(),
   ];
 
   // 注册下班提醒
   const goHome = registerGoHome();
 
+  // 注册分栏显示定义功能（Alt+左键点击跳转）
+  const splitViewDefinitions = registerSplitViewDefinition();
+
   // 推送到订阅列表
-  context.subscriptions.push(...commands, goHome);
+  context.subscriptions.push(...commands, goHome, ...splitViewDefinitions);
 }
 
 function deactivate() {}

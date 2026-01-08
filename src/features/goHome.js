@@ -10,7 +10,7 @@ const NotificationMessage = "🎉 到点啦 该下班了!";
 function getConfig() {
   const config = vscode.workspace.getConfiguration("gohome");
   return {
-    prefix: config.get("prefix", ">>"),
+    prefix: config.get("prefix", ">>>>>"),
     hour: config.get("hour", 18),
     minute: config.get("minute", 0),
   };
