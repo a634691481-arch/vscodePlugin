@@ -7,6 +7,9 @@ const { registerCopyVuePathCommand } = require("./src/commands/copyVuePath");
 const {
   registerInsertConsoleLogCommand,
 } = require("./src/commands/insertConsoleLog");
+const {
+  registerBracketSelectCommands,
+} = require("./src/commands/bracketSelect");
 
 // 功能模块
 const { registerGoHome } = require("./src/features/goHome");
@@ -25,6 +28,7 @@ function activate(context) {
   const commands = [
     registerCopyVuePathCommand(),
     registerInsertConsoleLogCommand(),
+    ...registerBracketSelectCommands(),
   ];
 
   // 注册下班提醒

@@ -2,7 +2,7 @@
   "name": "autovue-companion",
   "displayName": "AutoVue Companion",
   "description": "AutoVue Companion",
-  "version": "2.0.0",
+  "version": "0.0.1",
   "publisher": "vue-variable-method-generator",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -35,6 +35,18 @@
       {
         "command": "vscodeplugin.insertConsoleLog",
         "title": "🖨️ 插入 console.log"
+      },
+      {
+        "command": "vscodeplugin.bracketSelect",
+        "title": "🎯 括号选择（不含括号）"
+      },
+      {
+        "command": "vscodeplugin.bracketSelectInclude",
+        "title": "📦 括号选择（含括号）"
+      },
+      {
+        "command": "vscodeplugin.bracketSelectUndo",
+        "title": "↩️ 撤销选择"
       }
     ],
     "menus": {
@@ -51,6 +63,21 @@
         "command": "vscodeplugin.insertConsoleLog",
         "key": "ctrl+shift+l",
         "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
+      },
+      {
+        "command": "vscodeplugin.bracketSelect",
+        "key": "alt+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "vscodeplugin.bracketSelectInclude",
+        "key": "ctrl+alt+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "vscodeplugin.bracketSelectUndo",
+        "key": "alt+z",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": {
@@ -76,6 +103,26 @@
           "type": "number",
           "default": 0,
           "description": "下班时间 - 分钟"
+        },
+        "gohome.showDate": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示日期（月/日）"
+        },
+        "gohome.showWeek": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示星期（周几）"
+        },
+        "gohome.showMonthProgress": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示本月进度百分比"
+        },
+        "gohome.showWorkday": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示距离周末的天数"
         }
       }
     }
