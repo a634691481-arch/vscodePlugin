@@ -8,9 +8,99 @@ const { detectVue3 } = require("../utils/vueDetector");
 /**
  * 查找符号定义的位置
  */
-function findSymbolDefinition(document, symbolName, currentLine) {
+function findSymbolDefinition(
+  document,
+  symbolName,
+  currentLine,
+  fullPath = []
+) {
   const text = document.getText();
   const lines = text.split("\n");
+
+  // 如果有完整路径，需要在特定的嵌套层级中查找
+  if (fullPath && fullPath.length > 0) {
+    const scriptMatch = text.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+    if (!scriptMatch) return { found: false };
+
+    const scriptContent = scriptMatch[1];
+    const rootName = fullPath[0];
+    const nestedParts = fullPath.slice(1);
+
+    // 查找根对象定义
+    const rootRegex = new RegExp(
+      `(?:const|let|var)\\s+${rootName}\\s*=\\s*(?:ref|reactive)\\s*\\(`
+    );
+    const rootMatch = scriptContent.match(rootRegex);
+
+    if (rootMatch) {
+      const afterRoot = scriptContent
+        .substring(rootMatch.index + rootMatch[0].length)
+        .trim();
+      if (!afterRoot.startsWith("{")) return { found: false };
+
+      let currentOffset = rootMatch.index + rootMatch[0].length;
+      const braceIndex = scriptContent.indexOf("{", currentOffset);
+      if (braceIndex !== -1) {
+        currentOffset = braceIndex + 1;
+      }
+
+      // 逐层深入到目标嵌套层级
+      for (const part of nestedParts) {
+        const remainingText = scriptContent.substring(currentOffset);
+        const partRegex = new RegExp(`\\b${part}\\s*:\\s*{`);
+        const partMatch = remainingText.match(partRegex);
+        if (partMatch) {
+          currentOffset += partMatch.index + partMatch[0].length;
+        } else {
+          // 如果某一层不存在，说明需要生成
+          return { found: false };
+        }
+      }
+
+      // 在当前层级中查找目标符号
+      const afterTarget = scriptContent.substring(currentOffset);
+      let braceCount = 1;
+      let searchEnd = 0;
+
+      // 找到当前层级的结束位置
+      for (let i = 0; i < afterTarget.length; i++) {
+        if (afterTarget[i] === "{") braceCount++;
+        else if (afterTarget[i] === "}") braceCount--;
+        if (braceCount === 0) {
+          searchEnd = i;
+          break;
+        }
+      }
+
+      const currentLevelContent = afterTarget.substring(0, searchEnd);
+      const symbolRegex = new RegExp(`\\b${symbolName}\\s*:`);
+      const symbolMatch = currentLevelContent.match(symbolRegex);
+
+      if (symbolMatch) {
+        // 找到了，计算在文档中的位置
+        const absoluteOffset =
+          scriptMatch.index +
+          scriptMatch[0].indexOf(scriptContent) +
+          currentOffset +
+          symbolMatch.index;
+        const position = document.positionAt(absoluteOffset);
+        return {
+          line: position.line,
+          column: position.character + symbolMatch[0].indexOf(symbolName),
+          found: true,
+        };
+      }
+    }
+
+    // 在指定路径中没找到，返回未找到
+    return { found: false };
+  }
+
+  // 原有的简单查找逻辑（用于没有路径的情况）
+  const isVue3 =
+    text.includes("<script setup>") ||
+    text.includes("setup()") ||
+    /import\s+{[^}]*ref[^}]*}\s+from\s+['"]vue['"]/.test(text);
 
   // Vue 3 Composition API 模式
   const vue3Patterns = [
@@ -18,7 +108,22 @@ function findSymbolDefinition(document, symbolName, currentLine) {
     new RegExp(`^\\s*function\\s+${symbolName}\\s*\\(`, "m"),
   ];
 
-  // Vue 2 Options API 模式
+  // 先尝试 Vue 3
+  for (const pattern of vue3Patterns) {
+    for (let i = 0; i < lines.length; i++) {
+      if (i === currentLine) continue;
+      if (pattern.test(lines[i])) {
+        return { line: i, column: lines[i].indexOf(symbolName), found: true };
+      }
+    }
+  }
+
+  // 如果是 Vue 3 模式且没有路径，我们只查找 top-level 变量，不查找对象属性
+  if (isVue3) {
+    return { found: false };
+  }
+
+  // Vue 2 Options API 模式 (仅在非 Vue 3 或 Vue 3 未找到且允许查找属性时)
   const vue2Patterns = [
     {
       regex: new RegExp(`^\\s*${symbolName}\\s*\\([^)]*\\)\\s*{`, "m"),
@@ -38,16 +143,6 @@ function findSymbolDefinition(document, symbolName, currentLine) {
       type: "computed",
     },
   ];
-
-  // 先尝试 Vue 3
-  for (const pattern of vue3Patterns) {
-    for (let i = 0; i < lines.length; i++) {
-      if (i === currentLine) continue;
-      if (pattern.test(lines[i])) {
-        return { line: i, column: lines[i].indexOf(symbolName), found: true };
-      }
-    }
-  }
 
   // 再尝试 Vue 2
   for (const { regex } of vue2Patterns) {
@@ -146,72 +241,151 @@ function generateVue3Code(
 
     // 1. 查找根对象定义
     const rootRegex = new RegExp(
-      `(?:const|let|var)\\s+${rootName}\\s*=\\s*(?:ref|reactive)\\s*\\(\\s*{`
+      `(?:const|let|var)\\s+${rootName}\\s*=\\s*(?:ref|reactive)\\s*\\(`
     );
     const rootMatch = scriptText.match(rootRegex);
 
+    const buildStructure = (parts, finalProp) => {
+      if (parts.length === 0) return `${finalProp}: ''`;
+      const [first, ...rest] = parts;
+      return `${first}: { ${buildStructure(rest, finalProp)} }`;
+    };
+
     if (rootMatch) {
-      let currentOffset = rootMatch.index + rootMatch[0].length;
-      let currentIndentation = "    ";
+      const afterMatch = scriptText
+        .substring(rootMatch.index + rootMatch[0].length)
+        .trim();
+      const isObject = afterMatch.startsWith("{");
 
-      // 2. 逐层探测嵌套对象
-      for (const part of nestedParts) {
+      if (isObject) {
+        let currentOffset = rootMatch.index + rootMatch[0].length;
+        // 找到 { 的位置
+        const braceIndex = scriptText.indexOf("{", currentOffset);
+        if (braceIndex !== -1) {
+          currentOffset = braceIndex + 1;
+        }
+
+        let currentIndentation = "    ";
+        let foundDepth = 0;
+
+        // 2. 逐层探测嵌套对象
+        for (const part of nestedParts) {
+          const remainingText = scriptText.substring(currentOffset);
+          const partRegex = new RegExp(`\\b${part}\\s*:\\s*{`);
+          const partMatch = remainingText.match(partRegex);
+          if (partMatch) {
+            currentOffset += partMatch.index + partMatch[0].length;
+            currentIndentation += "  ";
+            foundDepth++;
+          } else {
+            // 如果某一层没找到，就在当前层级停止钻取
+            break;
+          }
+        }
+
+        const remainingParts = nestedParts.slice(foundDepth);
+        const insertCode = buildStructure(remainingParts, symbolName);
+
+        // 关键改进：检查是否已经存在同名属性但不是对象（例如 fdsd: ''），如果是，则直接替换
+        const firstToSearch =
+          remainingParts.length > 0 ? remainingParts[0] : symbolName;
         const remainingText = scriptText.substring(currentOffset);
-        const partRegex = new RegExp(`\\b${part}\\s*:\\s*{`);
-        const partMatch = remainingText.match(partRegex);
-        if (partMatch) {
-          currentOffset += partMatch.index + partMatch[0].length;
-          currentIndentation += "  ";
-        } else {
-          // 如果某一层没找到，就在当前层级停止钻取
-          break;
+        const simplePropRegex = new RegExp(
+          `\\b${firstToSearch}\\s*:\\s*([^,}]+)`
+        );
+        const simplePropMatch = remainingText.match(simplePropRegex);
+
+        if (simplePropMatch) {
+          const startOffset =
+            scriptRange.startOffset + currentOffset + simplePropMatch.index;
+          const endOffset = startOffset + simplePropMatch[0].length;
+          const range = new vscode.Range(
+            document.positionAt(startOffset),
+            document.positionAt(endOffset)
+          );
+
+          return {
+            code: insertCode,
+            range: range,
+            definitionPosition: new vscode.Position(
+              range.start.line,
+              range.start.character +
+                insertCode.indexOf(symbolName) +
+                symbolName.length
+            ),
+          };
         }
-      }
 
-      // 3. 寻找当前层级的结束花括号 }
-      const afterTarget = scriptText.substring(currentOffset);
-      let braceCount = 1;
-      let closingBraceIndex = -1;
-      for (let i = 0; i < afterTarget.length; i++) {
-        if (afterTarget[i] === "{") braceCount++;
-        else if (afterTarget[i] === "}") braceCount--;
-        if (braceCount === 0) {
-          closingBraceIndex = i;
-          break;
+        // 3. 寻找当前层级的结束花括号 }
+        const afterTarget = scriptText.substring(currentOffset);
+        let braceCount = 1;
+        let closingBraceIndex = -1;
+        for (let i = 0; i < afterTarget.length; i++) {
+          if (afterTarget[i] === "{") braceCount++;
+          else if (afterTarget[i] === "}") braceCount--;
+          if (braceCount === 0) {
+            closingBraceIndex = i;
+            break;
+          }
         }
-      }
 
-      if (closingBraceIndex !== -1) {
-        const absoluteOffset =
-          scriptRange.startOffset + currentOffset + closingBraceIndex;
-        const insertPosition = document.positionAt(absoluteOffset);
+        if (closingBraceIndex !== -1) {
+          const absoluteOffset =
+            scriptRange.startOffset + currentOffset + closingBraceIndex;
+          const insertPosition = document.positionAt(absoluteOffset);
 
-        // 检查当前对象内是否已有属性（需要在前一个属性后添加逗号）
-        const contentBeforeClosingBrace = afterTarget
-          .substring(0, closingBraceIndex)
-          .trim();
-        const needsComma = contentBeforeClosingBrace.length > 0;
+          // 检查当前对象内是否已有属性（需要在前一个属性后添加逗号）
+          const contentBeforeClosingBrace = afterTarget
+            .substring(0, closingBraceIndex)
+            .trim();
+          const needsComma = contentBeforeClosingBrace.length > 0;
 
-        return {
-          code: needsComma
-            ? `,\n${currentIndentation}${symbolName}: ''`
-            : `${currentIndentation}${symbolName}: ''`,
-          position: insertPosition,
-          definitionPosition: new vscode.Position(
-            insertPosition.line + (needsComma ? 1 : 0),
-            currentIndentation.length + symbolName.length
-          ),
-        };
+          return {
+            code: needsComma
+              ? `,\n${currentIndentation}${insertCode}`
+              : `${currentIndentation}${insertCode}`,
+            position: insertPosition,
+            definitionPosition: new vscode.Position(
+              insertPosition.line + (needsComma ? 1 : 0),
+              currentIndentation.length +
+                remainingParts.reduce((acc, p) => acc + p.length + 4, 0) +
+                symbolName.length
+            ),
+          };
+        }
+      } else {
+        // 根对象存在，但是个简单的 ref，例如 const ggg = ref('')
+        // 需要将其替换为 const ggg = ref({ ... })
+        const endOfRef = scriptText.substring(rootMatch.index).indexOf(")");
+        if (endOfRef !== -1) {
+          const startOffset = scriptRange.startOffset + rootMatch.index;
+          const endOffset = startOffset + endOfRef + 1;
+          const range = new vscode.Range(
+            document.positionAt(startOffset),
+            document.positionAt(endOffset)
+          );
+
+          const nestedStructure = `{ ${buildStructure(
+            nestedParts,
+            symbolName
+          )} }`;
+          const newCode = `const ${rootName} = ref(${nestedStructure})`;
+
+          return {
+            code: newCode,
+            range: range,
+            definitionPosition: new vscode.Position(
+              range.start.line,
+              range.start.character +
+                newCode.indexOf(symbolName) +
+                symbolName.length
+            ),
+          };
+        }
       }
     } else {
       // 根对象不存在，创建完整的嵌套结构
-      const buildNestedObject = (parts, finalProp) => {
-        if (parts.length === 0) return `{ ${finalProp}: '' }`;
-        const [first, ...rest] = parts;
-        return `{ ${first}: ${buildNestedObject(rest, finalProp)} }`;
-      };
-
-      const nestedStructure = buildNestedObject(nestedParts, symbolName);
+      const nestedStructure = `{ ${buildStructure(nestedParts, symbolName)} }`;
       const newCode = `\n  const ${rootName} = ref(${nestedStructure})\n`;
 
       // 查找插入位置（在 import 后面或 script 开头）
@@ -245,8 +419,8 @@ function generateVue3Code(
         code: newCode,
         position: insertPosition,
         definitionPosition: new vscode.Position(
-          insertPosition.line + 1 + nestedParts.length,
-          4 + (nestedParts.length + 1) * 2 + symbolName.length
+          insertPosition.line + 1,
+          newCode.indexOf(symbolName) + symbolName.length
         ),
       };
     }
@@ -404,72 +578,150 @@ function generateVue2Code(
     const afterDataReturn = scriptText.substring(dataReturnStart);
 
     // 1. 查找根对象定义（例如：state: {）
-    const rootRegex = new RegExp(`\\b${rootName}\\s*:\\s*{`);
+    const rootRegex = new RegExp(`\\b${rootName}\\s*:\\s*`);
     const rootMatch = afterDataReturn.match(rootRegex);
 
+    const buildStructure = (parts, finalProp) => {
+      if (parts.length === 0) return `${finalProp}: ''`;
+      const [first, ...rest] = parts;
+      return `${first}: { ${buildStructure(rest, finalProp)} }`;
+    };
+
     if (rootMatch) {
-      // 根对象存在，逐层探测嵌套
-      let currentOffset =
-        dataReturnStart + rootMatch.index + rootMatch[0].length;
-      let currentIndentation = "        ";
+      const afterMatch = afterDataReturn
+        .substring(rootMatch.index + rootMatch[0].length)
+        .trim();
+      const isObject = afterMatch.startsWith("{");
 
-      // 2. 逐层探测嵌套对象
-      for (const part of nestedParts) {
+      if (isObject) {
+        // 根对象存在，逐层探测嵌套
+        let currentOffset =
+          dataReturnStart + rootMatch.index + rootMatch[0].length;
+        // 找到 { 的位置
+        const braceIndex = scriptText.indexOf("{", currentOffset);
+        if (braceIndex !== -1) {
+          currentOffset = braceIndex + 1;
+        }
+
+        let currentIndentation = "        ";
+        let foundDepth = 0; // 记录找到了多少层
+
+        // 2. 逐层探测嵌套对象
+        for (const part of nestedParts) {
+          const remainingText = scriptText.substring(currentOffset);
+          const partRegex = new RegExp(`\\b${part}\\s*:\\s*{`);
+          const partMatch = remainingText.match(partRegex);
+          if (partMatch) {
+            currentOffset += partMatch.index + partMatch[0].length;
+            currentIndentation += "  ";
+            foundDepth++;
+          } else {
+            break;
+          }
+        }
+
+        const remainingParts = nestedParts.slice(foundDepth);
+        const insertCode = buildStructure(remainingParts, symbolName);
+
+        // 关键改进：检查是否已经存在同名属性但不是对象（例如 fdsd: ''），如果是，则直接替换
+        const firstToSearch =
+          remainingParts.length > 0 ? remainingParts[0] : symbolName;
         const remainingText = scriptText.substring(currentOffset);
-        const partRegex = new RegExp(`\\b${part}\\s*:\\s*{`);
-        const partMatch = remainingText.match(partRegex);
-        if (partMatch) {
-          currentOffset += partMatch.index + partMatch[0].length;
-          currentIndentation += "  ";
-        } else {
-          break;
+        const simplePropRegex = new RegExp(
+          `\\b${firstToSearch}\\s*:\\s*([^,}]+)`
+        );
+        const simplePropMatch = remainingText.match(simplePropRegex);
+
+        if (simplePropMatch) {
+          const startOffset =
+            scriptRange.startOffset + currentOffset + simplePropMatch.index;
+          const endOffset = startOffset + simplePropMatch[0].length;
+          const range = new vscode.Range(
+            document.positionAt(startOffset),
+            document.positionAt(endOffset)
+          );
+
+          return {
+            code: insertCode,
+            range: range,
+            definitionPosition: new vscode.Position(
+              range.start.line,
+              range.start.character +
+                insertCode.indexOf(symbolName) +
+                symbolName.length
+            ),
+          };
         }
-      }
 
-      // 3. 找到当前层级的结束花括号
-      const afterTarget = scriptText.substring(currentOffset);
-      let braceCount = 1;
-      let closingBraceIndex = -1;
-      for (let i = 0; i < afterTarget.length; i++) {
-        if (afterTarget[i] === "{") braceCount++;
-        else if (afterTarget[i] === "}") braceCount--;
-        if (braceCount === 0) {
-          closingBraceIndex = i;
-          break;
+        // 3. 找到当前层级的结束花括号
+        const afterTarget = scriptText.substring(currentOffset);
+        let braceCount = 1;
+        let closingBraceIndex = -1;
+        for (let i = 0; i < afterTarget.length; i++) {
+          if (afterTarget[i] === "{") braceCount++;
+          else if (afterTarget[i] === "}") braceCount--;
+          if (braceCount === 0) {
+            closingBraceIndex = i;
+            break;
+          }
         }
-      }
 
-      if (closingBraceIndex !== -1) {
-        const absoluteOffset =
-          scriptRange.startOffset + currentOffset + closingBraceIndex;
-        const insertPosition = document.positionAt(absoluteOffset);
+        if (closingBraceIndex !== -1) {
+          const absoluteOffset =
+            scriptRange.startOffset + currentOffset + closingBraceIndex;
+          const insertPosition = document.positionAt(absoluteOffset);
 
-        // 检查是否需要逗号
-        const contentBeforeClosingBrace = afterTarget
-          .substring(0, closingBraceIndex)
-          .trim();
-        const needsComma = contentBeforeClosingBrace.length > 0;
+          // 检查是否需要逗号
+          const contentBeforeClosingBrace = afterTarget
+            .substring(0, closingBraceIndex)
+            .trim();
+          const needsComma = contentBeforeClosingBrace.length > 0;
+
+          return {
+            code: needsComma
+              ? `,\n${currentIndentation}${insertCode}`
+              : `${currentIndentation}${insertCode}`,
+            position: insertPosition,
+            definitionPosition: new vscode.Position(
+              insertPosition.line + (needsComma ? 1 : 0),
+              currentIndentation.length +
+                remainingParts.reduce((acc, p) => acc + p.length + 4, 0) +
+                symbolName.length
+            ),
+          };
+        }
+      } else {
+        // 根对象存在，但是个简单的属性，例如 ggg: ''
+        // 需要将其替换为 ggg: { ... }
+        const endOfProp = afterMatch.match(/[^,}\n]*/)[0];
+        const startOffset =
+          scriptRange.startOffset + dataReturnStart + rootMatch.index;
+        const endOffset = startOffset + rootMatch[0].length + endOfProp.length;
+        const range = new vscode.Range(
+          document.positionAt(startOffset),
+          document.positionAt(endOffset)
+        );
+
+        const nestedStructure = `{ ${buildStructure(
+          nestedParts,
+          symbolName
+        )} }`;
+        const newCode = `${rootName}: ${nestedStructure}`;
 
         return {
-          code: needsComma
-            ? `,\n${currentIndentation}${symbolName}: ''`
-            : `${currentIndentation}${symbolName}: ''`,
-          position: insertPosition,
+          code: newCode,
+          range: range,
           definitionPosition: new vscode.Position(
-            insertPosition.line + (needsComma ? 1 : 0),
-            currentIndentation.length + symbolName.length
+            range.start.line,
+            range.start.character +
+              newCode.indexOf(symbolName) +
+              symbolName.length
           ),
         };
       }
     } else {
       // 根对象不存在，创建完整的嵌套结构
-      const buildNestedObject = (parts, finalProp) => {
-        if (parts.length === 0) return `{ ${finalProp}: '' }`;
-        const [first, ...rest] = parts;
-        return `{ ${first}: ${buildNestedObject(rest, finalProp)} }`;
-      };
-
-      const nestedStructure = buildNestedObject(nestedParts, symbolName);
+      const nestedStructure = `{ ${buildStructure(nestedParts, symbolName)} }`;
       const newCode = `\n      ${rootName}: ${nestedStructure},\n`;
 
       // 在 data() return { 后插入
@@ -481,7 +733,7 @@ function generateVue2Code(
         position: insertPosition,
         definitionPosition: new vscode.Position(
           insertPosition.line + 1,
-          6 + rootName.length
+          newCode.indexOf(symbolName) + symbolName.length
         ),
       };
     }
@@ -675,7 +927,12 @@ async function quickGenerateOrJump() {
   const args = extractArgs(lineText, symbolName);
 
   // 1. 先尝试查找定义
-  const definition = findSymbolDefinition(document, symbolName, position.line);
+  const definition = findSymbolDefinition(
+    document,
+    symbolName,
+    position.line,
+    fullPath
+  );
 
   if (definition.found) {
     // 已定义，跳转到定义位置
@@ -720,9 +977,13 @@ async function quickGenerateOrJump() {
 
   if (!generationResult) return;
 
-  // 插入生成的代码
+  // 插入或替换生成的代码
   const edit = new vscode.WorkspaceEdit();
-  edit.insert(document.uri, generationResult.position, generationResult.code);
+  if (generationResult.range) {
+    edit.replace(document.uri, generationResult.range, generationResult.code);
+  } else {
+    edit.insert(document.uri, generationResult.position, generationResult.code);
+  }
 
   await vscode.workspace.applyEdit(edit);
 
