@@ -2,7 +2,7 @@
   "name": "autovue-companion",
   "displayName": "AutoVue Companion",
   "description": "AutoVue Companion",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "vue-variable-method-generator",
   "license": "MIT",
   "icon": "images/icon.png",
@@ -47,6 +47,10 @@
       {
         "command": "vscodeplugin.bracketSelectUndo",
         "title": "↩️ 撤销选择"
+      },
+      {
+        "command": "vscodeplugin.quickGenerate",
+        "title": "⚡ 快速生成/跳转"
       }
     ],
     "menus": {
@@ -78,6 +82,11 @@
         "command": "vscodeplugin.bracketSelectUndo",
         "key": "alt+z",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "vscodeplugin.quickGenerate",
+        "key": "alt+enter",
+        "when": "editorTextFocus && resourceExtname == .vue"
       }
     ],
     "configuration": {

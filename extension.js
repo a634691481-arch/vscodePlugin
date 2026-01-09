@@ -10,6 +10,9 @@ const {
 const {
   registerBracketSelectCommands,
 } = require("./src/commands/bracketSelect");
+const {
+  registerQuickGenerateCommand,
+} = require("./src/commands/quickGenerate");
 
 // 功能模块
 const { registerGoHome } = require("./src/features/goHome");
@@ -29,6 +32,7 @@ function activate(context) {
     registerCopyVuePathCommand(),
     registerInsertConsoleLogCommand(),
     ...registerBracketSelectCommands(),
+    registerQuickGenerateCommand(),
   ];
 
   // 注册下班提醒
