@@ -379,6 +379,7 @@ function generateVue2Code(
   symbolName,
   isMethod,
   scriptRange,
+  fullPath = [],
   args = []
 ) {
   const text = document.getText();
@@ -386,6 +387,105 @@ function generateVue2Code(
     scriptRange.startOffset,
     scriptRange.endOffset
   );
+
+  // 处理嵌套对象路径（例如 fullPath = ["state", "user"]）
+  if (fullPath && fullPath.length > 0 && !isMethod) {
+    const rootName = fullPath[0];
+    const nestedParts = fullPath.slice(1);
+
+    // 在 data() 中查找根对象
+    const dataMatch = scriptText.match(/data\s*\(\s*\)\s*{[\s\S]*?return\s*{/);
+    if (!dataMatch) {
+      vscode.window.showErrorMessage("❌ 未找到 data() { return { } 块");
+      return null;
+    }
+
+    const dataReturnStart = dataMatch.index + dataMatch[0].length;
+    const afterDataReturn = scriptText.substring(dataReturnStart);
+
+    // 1. 查找根对象定义（例如：state: {）
+    const rootRegex = new RegExp(`\\b${rootName}\\s*:\\s*{`);
+    const rootMatch = afterDataReturn.match(rootRegex);
+
+    if (rootMatch) {
+      // 根对象存在，逐层探测嵌套
+      let currentOffset =
+        dataReturnStart + rootMatch.index + rootMatch[0].length;
+      let currentIndentation = "        ";
+
+      // 2. 逐层探测嵌套对象
+      for (const part of nestedParts) {
+        const remainingText = scriptText.substring(currentOffset);
+        const partRegex = new RegExp(`\\b${part}\\s*:\\s*{`);
+        const partMatch = remainingText.match(partRegex);
+        if (partMatch) {
+          currentOffset += partMatch.index + partMatch[0].length;
+          currentIndentation += "  ";
+        } else {
+          break;
+        }
+      }
+
+      // 3. 找到当前层级的结束花括号
+      const afterTarget = scriptText.substring(currentOffset);
+      let braceCount = 1;
+      let closingBraceIndex = -1;
+      for (let i = 0; i < afterTarget.length; i++) {
+        if (afterTarget[i] === "{") braceCount++;
+        else if (afterTarget[i] === "}") braceCount--;
+        if (braceCount === 0) {
+          closingBraceIndex = i;
+          break;
+        }
+      }
+
+      if (closingBraceIndex !== -1) {
+        const absoluteOffset =
+          scriptRange.startOffset + currentOffset + closingBraceIndex;
+        const insertPosition = document.positionAt(absoluteOffset);
+
+        // 检查是否需要逗号
+        const contentBeforeClosingBrace = afterTarget
+          .substring(0, closingBraceIndex)
+          .trim();
+        const needsComma = contentBeforeClosingBrace.length > 0;
+
+        return {
+          code: needsComma
+            ? `,\n${currentIndentation}${symbolName}: ''`
+            : `${currentIndentation}${symbolName}: ''`,
+          position: insertPosition,
+          definitionPosition: new vscode.Position(
+            insertPosition.line + (needsComma ? 1 : 0),
+            currentIndentation.length + symbolName.length
+          ),
+        };
+      }
+    } else {
+      // 根对象不存在，创建完整的嵌套结构
+      const buildNestedObject = (parts, finalProp) => {
+        if (parts.length === 0) return `{ ${finalProp}: '' }`;
+        const [first, ...rest] = parts;
+        return `{ ${first}: ${buildNestedObject(rest, finalProp)} }`;
+      };
+
+      const nestedStructure = buildNestedObject(nestedParts, symbolName);
+      const newCode = `\n      ${rootName}: ${nestedStructure},\n`;
+
+      // 在 data() return { 后插入
+      const returnStartOffset = scriptRange.startOffset + dataReturnStart;
+      const insertPosition = document.positionAt(returnStartOffset);
+
+      return {
+        code: newCode,
+        position: insertPosition,
+        definitionPosition: new vscode.Position(
+          insertPosition.line + 1,
+          6 + rootName.length
+        ),
+      };
+    }
+  }
 
   if (isMethod) {
     // 在 methods 中生成方法
@@ -559,15 +659,15 @@ async function quickGenerateOrJump() {
     wordRange.start
   );
   const beforeText = document.getText(beforeRange);
-  
+
   // 关键修复：检查紧邻符号前的字符是否是 '.'
   // 只有当紧邻的字符是 '.' 时，才认为是嵌套属性
-  if (beforeText.length > 0 && beforeText[beforeText.length - 1] === '.') {
+  if (beforeText.length > 0 && beforeText[beforeText.length - 1] === ".") {
     // 提取路径：从 beforeText 中提取最后一个完整的路径表达式
     const parts = beforeText.split(/[\s\(\[\{\}\]\)\+\-\*\/=><!?,;]/);
     const lastPart = parts[parts.length - 1]; // 例如 "dddd.ididi."
-    if (lastPart.endsWith('.')) {
-      fullPath = lastPart.slice(0, -1).split('.'); // ["dddd", "ididi"]
+    if (lastPart.endsWith(".")) {
+      fullPath = lastPart.slice(0, -1).split("."); // ["dddd", "ididi"]
     }
   }
 
@@ -613,6 +713,7 @@ async function quickGenerateOrJump() {
       symbolName,
       isMethod,
       scriptRange,
+      fullPath,
       args
     );
   }
