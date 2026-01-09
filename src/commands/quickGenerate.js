@@ -185,15 +185,70 @@ function generateVue3Code(
         const absoluteOffset =
           scriptRange.startOffset + currentOffset + closingBraceIndex;
         const insertPosition = document.positionAt(absoluteOffset);
+
+        // 检查当前对象内是否已有属性（需要在前一个属性后添加逗号）
+        const contentBeforeClosingBrace = afterTarget
+          .substring(0, closingBraceIndex)
+          .trim();
+        const needsComma = contentBeforeClosingBrace.length > 0;
+
         return {
-          code: `  ${symbolName}: '',\n${currentIndentation}`,
+          code: needsComma
+            ? `,\n${currentIndentation}${symbolName}: ''`
+            : `${currentIndentation}${symbolName}: ''`,
           position: insertPosition,
           definitionPosition: new vscode.Position(
-            insertPosition.line,
+            insertPosition.line + (needsComma ? 1 : 0),
             currentIndentation.length + symbolName.length
           ),
         };
       }
+    } else {
+      // 根对象不存在，创建完整的嵌套结构
+      const buildNestedObject = (parts, finalProp) => {
+        if (parts.length === 0) return `{ ${finalProp}: '' }`;
+        const [first, ...rest] = parts;
+        return `{ ${first}: ${buildNestedObject(rest, finalProp)} }`;
+      };
+
+      const nestedStructure = buildNestedObject(nestedParts, symbolName);
+      const newCode = `\n  const ${rootName} = ref(${nestedStructure})\n`;
+
+      // 查找插入位置（在 import 后面或 script 开头）
+      let insertPosition;
+      if (isScriptSetup) {
+        const importMatches = [
+          ...scriptText.matchAll(/import\s+.*from\s+['"].*['"]/g),
+        ];
+        if (importMatches.length > 0) {
+          const lastImport = importMatches[importMatches.length - 1];
+          const lastImportEnd =
+            scriptRange.startOffset + lastImport.index + lastImport[0].length;
+          const pos = document.positionAt(lastImportEnd);
+          insertPosition = new vscode.Position(pos.line + 1, 0);
+        } else {
+          insertPosition = scriptRange.start;
+        }
+      } else {
+        const setupMatch = scriptText.match(/setup\s*\(\s*\)\s*{/);
+        if (setupMatch) {
+          const pos = document.positionAt(
+            scriptRange.startOffset + setupMatch.index
+          );
+          insertPosition = new vscode.Position(pos.line + 1, 0);
+        } else {
+          insertPosition = scriptRange.start;
+        }
+      }
+
+      return {
+        code: newCode,
+        position: insertPosition,
+        definitionPosition: new vscode.Position(
+          insertPosition.line + 1 + nestedParts.length,
+          4 + (nestedParts.length + 1) * 2 + symbolName.length
+        ),
+      };
     }
   }
 
@@ -503,12 +558,16 @@ async function quickGenerateOrJump() {
     new vscode.Position(position.line, 0),
     wordRange.start
   );
-  const beforeText = document.getText(beforeRange).trim();
-  if (beforeText.endsWith(".")) {
+  const beforeText = document.getText(beforeRange);
+  
+  // 关键修复：检查紧邻符号前的字符是否是 '.'
+  // 只有当紧邻的字符是 '.' 时，才认为是嵌套属性
+  if (beforeText.length > 0 && beforeText[beforeText.length - 1] === '.') {
+    // 提取路径：从 beforeText 中提取最后一个完整的路径表达式
     const parts = beforeText.split(/[\s\(\[\{\}\]\)\+\-\*\/=><!?,;]/);
     const lastPart = parts[parts.length - 1]; // 例如 "dddd.ididi."
-    if (lastPart.endsWith(".")) {
-      fullPath = lastPart.slice(0, -1).split("."); // ["dddd", "ididi"]
+    if (lastPart.endsWith('.')) {
+      fullPath = lastPart.slice(0, -1).split('.'); // ["dddd", "ididi"]
     }
   }
 
