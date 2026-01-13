@@ -2,7 +2,7 @@
   "name": "autovue-companion",
   "displayName": "AutoVue Companion",
   "description": "AutoVue Companion",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "vue-variable-method-generator",
   "license": "MIT",
   "icon": "images/icon.png",
