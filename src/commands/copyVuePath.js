@@ -36,7 +36,7 @@ function registerCopyVuePathCommand() {
 
       await vscode.env.clipboard.writeText(relativePath);
       vscode.window.showInformationMessage(`✅ 已复制路径: ${relativePath}`);
-    }
+    },
   );
 }
 

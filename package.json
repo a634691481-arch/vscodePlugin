@@ -30,27 +30,7 @@
     "commands": [
       {
         "command": "vscodeplugin.copyVuePath",
-        "title": "y66 📋 复制Vue页面路径"
-      },
-      {
-        "command": "vscodeplugin.insertConsoleLog",
-        "title": "🖨️ 插入 console.log"
-      },
-      {
-        "command": "vscodeplugin.bracketSelect",
-        "title": "🎯 括号选择（不含括号）"
-      },
-      {
-        "command": "vscodeplugin.bracketSelectInclude",
-        "title": "📦 括号选择（含括号）"
-      },
-      {
-        "command": "vscodeplugin.bracketSelectUndo",
-        "title": "↩️ 撤销选择"
-      },
-      {
-        "command": "vscodeplugin.quickGenerate",
-        "title": "⚡ 快速生成/跳转"
+        "title": "📋 复制Vue页面路径"
       }
     ],
     "menus": {
@@ -62,78 +42,10 @@
         }
       ]
     },
-    "keybindings": [
-      {
-        "command": "vscodeplugin.insertConsoleLog",
-        "key": "ctrl+shift+l",
-        "when": "editorTextFocus && (resourceExtname == .vue || resourceExtname == .js || resourceExtname == .ts)"
-      },
-      {
-        "command": "vscodeplugin.bracketSelect",
-        "key": "alt+a",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "vscodeplugin.bracketSelectInclude",
-        "key": "ctrl+alt+a",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "vscodeplugin.bracketSelectUndo",
-        "key": "alt+z",
-        "when": "editorTextFocus"
-      },
-      {
-        "command": "vscodeplugin.quickGenerate",
-        "key": "alt+enter",
-        "when": "editorTextFocus && resourceExtname == .vue"
-      }
-    ],
+    "keybindings": [],
     "configuration": {
       "type": "object",
-      "title": "AutoVue Companion",
-      "properties": {
-        "editor.multiCursorModifier": {
-          "type": "string",
-          "default": "ctrlCmd",
-          "description": "修改多光标修饰键以使用 Alt+点击 进行跳转"
-        },
-        "gohome.prefix": {
-          "type": "string",
-          "default": ">>>>>",
-          "description": "下班倒计时前缀文字"
-        },
-        "gohome.hour": {
-          "type": "number",
-          "default": 18,
-          "description": "下班时间 - 小时（24小时制）"
-        },
-        "gohome.minute": {
-          "type": "number",
-          "default": 0,
-          "description": "下班时间 - 分钟"
-        },
-        "gohome.showDate": {
-          "type": "boolean",
-          "default": true,
-          "description": "显示日期（月/日）"
-        },
-        "gohome.showWeek": {
-          "type": "boolean",
-          "default": true,
-          "description": "显示星期（周几）"
-        },
-        "gohome.showMonthProgress": {
-          "type": "boolean",
-          "default": true,
-          "description": "显示本月进度百分比"
-        },
-        "gohome.showWorkday": {
-          "type": "boolean",
-          "default": true,
-          "description": "显示距离周末的天数"
-        }
-      }
+      "title": "AutoVue Companion"
     }
   },
   "scripts": {
